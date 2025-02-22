@@ -472,7 +472,7 @@ class Timer(ttk.Frame):
                 next_timers = [t for t in self.parent.timers if t != self]
 
             notification = TimerNotification(
-                self.parent, self.description.get(), next_timers
+                self.parent, self.description.get(), next_timers, current_timer=self
             )
 
             self.wait_window(notification)

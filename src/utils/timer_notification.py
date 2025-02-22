@@ -3,9 +3,12 @@ from tkinter import ttk
 
 
 class TimerNotification(tk.Toplevel):
-    def __init__(self, parent, description, next_timers=None):
+    def __init__(self, parent, description, next_timers=None, current_timer=None):
         super().__init__(parent)
+        self.parent = parent
         self.next_timers = next_timers
+        self.current_timer = current_timer
+        self.timer_list = self.find_timer_list(parent)
         self.result = None
 
         style = ttk.Style()
@@ -120,8 +123,32 @@ class TimerNotification(tk.Toplevel):
         self.result = "continue"
         self.close_notification()
 
+    def find_timer_list(self, widget):
+        """Ищет объект, содержащий список таймеров"""
+        current = widget
+        while current:
+            if hasattr(current, "timers"):
+                return current
+            current = current.master
+        return None
+
     def start_next_timer(self, timer):
         self.result = "next"
+
+        if (
+            self.current_timer
+            and hasattr(self.current_timer, "main_window")
+            and self.current_timer.main_window
+            and self.current_timer.main_window.winfo_exists()
+        ):
+
+            existing_window = self.current_timer.main_window
+            self.current_timer.main_window = None
+            timer.main_window = existing_window
+            existing_window.timer = timer
+            existing_window.description_label.configure(text=timer.description.get())
+            existing_window.draw_progress()
+
         timer.start_timer()
         self.close_notification()
 
