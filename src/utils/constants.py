@@ -1,4 +1,5 @@
 import os
+
 from utils.resource_path import get_resource_path
 
 RESOURCES_DIR = get_resource_path("")

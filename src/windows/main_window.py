@@ -8,13 +8,12 @@ from PIL import Image, ImageTk
 from pygame import mixer
 from ttkthemes import ThemedTk
 
-from utils.constants import IMAGES
-
 from components.timer import Timer
 from tabs.habits_tab import HabitsTab
 from tabs.pushup_tracker_tab import PushupTrackerTab
 from tabs.telegram_tab import TelegramTab
 from tabs.todo_list_tab import TodoListTab
+from utils.constants import IMAGES
 
 
 class MainWindow(ThemedTk):

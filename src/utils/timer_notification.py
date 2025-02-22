@@ -195,7 +195,7 @@ class TimerNotification(tk.Toplevel):
             ).pack(pady=(0, 20))
 
             buttons_container = ttk.Frame(timer_frame, style="White.TFrame")
-            buttons_container.pack(fill=tk.X)
+            buttons_container.pack(expand=True)
 
             row_size = 4
             for i, timer in enumerate(next_timers):
@@ -247,6 +247,7 @@ class TimerNotification(tk.Toplevel):
 
                 for i in range(row_size):
                     buttons_container.grid_columnconfigure(i, weight=1)
+
         self.focus_force()
         self.bind("<Button-1>", lambda e: self.focus_force())
         self.bind("<Escape>", lambda e: self.close_notification())
