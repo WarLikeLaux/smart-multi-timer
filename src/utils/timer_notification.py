@@ -3,6 +3,8 @@ from tkinter import ttk
 
 from PIL import Image, ImageTk
 
+from utils.constants import IMAGES
+
 
 class TimerNotification(tk.Toplevel):
     def __init__(self, parent, description, next_timers=None, current_timer=None):
@@ -36,8 +38,8 @@ class TimerNotification(tk.Toplevel):
         right_image_frame.place(relx=0.9, rely=0.5, anchor="center")
 
         try:
-            left_pil = Image.open("2.jpeg").convert("RGBA")
-            right_pil = Image.open("1.jpeg").convert("RGBA")
+            left_pil = Image.open(IMAGES["LEFT_IMAGE"]).convert("RGBA")
+            right_pil = Image.open(IMAGES["RIGHT_IMAGE"]).convert("RGBA")
 
             new_size = (1000, 1400)
 
@@ -46,8 +48,8 @@ class TimerNotification(tk.Toplevel):
                 new_size = tuple(int(dim * ratio) for dim in image.size)
                 return image.resize(new_size, Image.Resampling.LANCZOS)
 
-            left_pil = resize_image(left_pil, new_size)
-            right_pil = resize_image(right_pil, new_size)
+            left_pil = Image.open(IMAGES["LEFT_IMAGE"]).convert("RGBA")
+            right_pil = Image.open(IMAGES["RIGHT_IMAGE"]).convert("RGBA")
 
             def process_transparency(image):
                 data = image.getdata()

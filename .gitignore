@@ -46,7 +46,6 @@ debug.log
 telegram_config.json
 
 # Build and dist
-*.spec
 build/
 dist/
 

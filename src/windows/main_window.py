@@ -1,13 +1,14 @@
 import platform
-import tempfile
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 import pystray
-from PIL import Image, ImageDraw
+from PIL import Image, ImageTk
 from pygame import mixer
 from ttkthemes import ThemedTk
+
+from utils.constants import IMAGES
 
 from components.timer import Timer
 from tabs.habits_tab import HabitsTab
@@ -19,6 +20,7 @@ from tabs.todo_list_tab import TodoListTab
 class MainWindow(ThemedTk):
     def __init__(self):
         super().__init__(theme="ubuntu")
+        self.iconbitmap(default=IMAGES["TRAY_ICON"])
         self.setup_global_styles()
         self.title("Мульти-таймер")
         self.timers = []
@@ -256,15 +258,8 @@ class MainWindow(ThemedTk):
         self.timers.append(break_timer)
 
     def create_tray_icon(self):
-        icon = Image.new("RGB", (64, 64), color="white")
-        d = ImageDraw.Draw(icon)
-        d.ellipse([2, 2, 62, 62], outline="black")
-        d.line([32, 32, 32, 10], fill="black", width=2)
-        d.line([32, 32, 50, 32], fill="black", width=2)
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".ico") as icon_file:
-            icon.save(icon_file, format="ICO")
-            self.icon_path = icon_file.name
+        icon = Image.open(IMAGES["TRAY_ICON"])
+        icon = icon.resize((32, 32))
 
         menu = (
             pystray.MenuItem("Показать", self.show_window),

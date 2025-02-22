@@ -6,6 +6,7 @@ from tkinter import ttk
 
 from pygame import mixer
 
+from utils.constants import SOUNDS
 from utils.sound_utils import SoundPlayer
 
 
@@ -17,7 +18,7 @@ class HabitReminder:
         if not mixer.get_init():
             mixer.init()
         try:
-            self.notification_sound = mixer.Sound("habit.mp3")
+            self.notification_sound = mixer.Sound(SOUNDS["HABIT_NOTIFICATION"])
         except:
             self.notification_sound = None
             print("Не удалось загрузить habit.mp3")
