@@ -129,6 +129,9 @@ class MainWindow(ThemedTk):
         self.pushups_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.pushups_tab, text="Отжимания")
 
+        self.medication_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.medication_tab, text="Таблетки")
+
         self.todo_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.todo_tab, text="Задачи")
 
@@ -137,9 +140,6 @@ class MainWindow(ThemedTk):
 
         self.telegram_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.telegram_tab, text="Telegram")
-
-        self.medication_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.medication_tab, text="Таблетки")
 
         self.setup_timers_ui()
 
@@ -204,7 +204,7 @@ class MainWindow(ThemedTk):
         self.timers_frame = ttk.Frame(self.main_frame)
         self.timers_frame.pack(expand=True, fill=tk.BOTH)
 
-        self.canvas = tk.Canvas(self.timers_frame)
+        self.canvas = tk.Canvas(self.timers_frame, bd=0, highlightthickness=0)
         scrollbar = ttk.Scrollbar(
             self.timers_frame, orient="vertical", command=self.canvas.yview
         )
@@ -222,6 +222,9 @@ class MainWindow(ThemedTk):
             width=self.timers_frame.winfo_width(),
         )
         self.canvas.bind("<Configure>", self._on_canvas_configure)
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -231,6 +234,10 @@ class MainWindow(ThemedTk):
         style.configure("Secondary.TButton", padding=8, font=("Arial", 10))
 
         self.load_timers()
+
+    def _on_mousewheel(self, event):
+        """Обработка прокрутки колесиком мыши"""
+        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def _on_canvas_configure(self, event):
         self.canvas.itemconfig(self.window_id, width=event.width)
