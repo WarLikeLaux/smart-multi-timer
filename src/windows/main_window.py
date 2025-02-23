@@ -49,7 +49,7 @@ class MainWindow(ThemedTk):
         if self.is_wsl:
             self.protocol("WM_DELETE_WINDOW", self.quit_app)
         else:
-            self.protocol("WM_DELETE_WINDOW", self.quit_app)
+            self.protocol("WM_DELETE_WINDOW", self.hide_window)
 
     def create_theme_menu(self):
         menu_bar = tk.Menu(self)
@@ -223,7 +223,7 @@ class MainWindow(ThemedTk):
         style.configure("Accent.TButton", padding=8, font=("Arial", 10, "bold"))
         style.configure("Secondary.TButton", padding=8, font=("Arial", 10))
 
-        self.add_default_timers()
+        self.load_timers()
 
     def _on_canvas_configure(self, event):
         self.canvas.itemconfig(self.window_id, width=event.width)
@@ -328,6 +328,8 @@ class MainWindow(ThemedTk):
 
     def quit_app(self):
         """Полностью закрывает приложение"""
+        self.save_timers()
+
         if hasattr(self, "icon") and self.icon:
             self.icon.stop()
 
@@ -346,8 +348,53 @@ class MainWindow(ThemedTk):
         timer = Timer(self, on_delete=self.remove_timer)
         timer.pack(in_=self.scrollable_frame, fill=tk.X)
         self.timers.append(timer)
+        self.save_timers()
 
     def remove_timer(self, timer):
         if timer in self.timers:
             self.timers.remove(timer)
             timer.destroy()
+            self.save_timers()
+
+    def save_timers(self):
+        """Сохраняет состояние таймеров в JSON файл"""
+        timers_data = []
+        for timer in self.timers:
+            timers_data.append(timer.to_dict())
+
+        try:
+            with open("timers.json", "w", encoding="utf-8") as f:
+                json.dump(timers_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Ошибка сохранения таймеров: {e}")
+
+    def load_timers(self):
+        """Загружает таймеры из JSON файла"""
+        try:
+            with open("timers.json", "r", encoding="utf-8") as f:
+                timers_data = json.load(f)
+
+            for timer_data in timers_data:
+                timer = Timer(self, on_delete=self.remove_timer)
+                timer.pack(in_=self.scrollable_frame, fill=tk.X)
+
+                timer.description.delete(0, tk.END)
+                timer.description.insert(0, timer_data["description"])
+
+                timer.hours.set(timer_data["hours"])
+                timer.minutes.set(timer_data["minutes"])
+                timer.seconds.set(timer_data["seconds"])
+
+                if timer_data.get("custom_sound"):
+                    timer.custom_sound = timer_data["custom_sound"]
+                    timer.sound_button.config(text="🔊 ✓")
+
+                timer.update_presets_visibility()
+                timer.update_time_display()
+                self.timers.append(timer)
+
+        except FileNotFoundError:
+            self.add_default_timers()
+        except Exception as e:
+            print(f"Ошибка загрузки таймеров: {e}")
+            self.add_default_timers()

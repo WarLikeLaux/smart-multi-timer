@@ -492,3 +492,15 @@ class Timer(ttk.Frame):
         if messagebox.askyesno("Подтверждение", "Действительно удалить таймер?"):
             if self.on_delete:
                 self.on_delete(self)
+
+    def to_dict(self):
+        """Преобразует таймер в словарь для сохранения"""
+        return {
+            "description": self.description.get(),
+            "hours": self.hours.get(),
+            "minutes": self.minutes.get(),
+            "seconds": self.seconds.get(),
+            "custom_sound": (
+                self.custom_sound if hasattr(self, "custom_sound") else None
+            ),
+        }
