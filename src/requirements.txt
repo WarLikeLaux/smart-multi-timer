@@ -1,0 +1,5 @@
+ttkthemes
+Pillow
+pystray
+pygame
+telethon
