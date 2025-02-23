@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import random
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -193,6 +194,15 @@ class TelegramTab(ttk.Frame):
         self.setup_styles()
         self.setup_ui()
         self.load_credentials()
+        self.after(random.randint(3000, 6000), self.check_and_start)
+
+    def check_and_start(self):
+        if all(
+            [self.api_id_entry.get(), self.api_hash_entry.get(), self.phone_entry.get()]
+        ):
+            self.start_telegram_client()
+        else:
+            self.log("Автозапуск пропущен - не все данные заполнены")
 
     def create_auth_dialog(self, message):
         """Создает диалоговое окно для ввода кода подтверждения"""
