@@ -38,6 +38,7 @@ class MedicationTab(ttk.Frame):
             text="Компактный режим",
             variable=self.compact_mode,
             command=self.toggle_compact_mode,
+            takefocus=0,
         ).pack(side=tk.LEFT, padx=10)
 
         buttons_frame = ttk.Frame(header)
@@ -48,6 +49,7 @@ class MedicationTab(ttk.Frame):
             text="+ Добавить прием",
             style="Secondary.TButton",
             command=self.add_custom_intake,
+            takefocus=0,
         ).pack(side=tk.LEFT, padx=5)
 
         ttk.Button(
@@ -55,6 +57,7 @@ class MedicationTab(ttk.Frame):
             text="Сбросить отметки",
             style="Secondary.TButton",
             command=self.reset_all_marks,
+            takefocus=0,
         ).pack(side=tk.LEFT, padx=5)
 
         self.canvas = tk.Canvas(main_container)
@@ -75,8 +78,7 @@ class MedicationTab(ttk.Frame):
 
         self.intakes_frame.bind("<Configure>", self.on_frame_configure)
         self.canvas.bind("<Configure>", self.on_canvas_configure)
-
-        self.update_intakes_display()
+        self.bind("<Map>", lambda e: self.after(500, self.update_intakes_display))
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
     def _on_mousewheel(self, event):
@@ -94,11 +96,11 @@ class MedicationTab(ttk.Frame):
     def toggle_compact_mode(self):
         """Переключает компактный режим отображения"""
         self.update_intakes_display()
+        self.canvas.itemconfig(self.canvas_frame, width=self.canvas.winfo_width())
 
-    def create_intake_frame(self, intake_name):
+    def create_intake_frame(self, parent, intake_name):
         """Создает фрейм для одного приема"""
-        frame = ttk.LabelFrame(self.intakes_frame, text=intake_name, padding=10)
-        frame.pack(fill=tk.X, pady=5)
+        frame = ttk.LabelFrame(parent, text=intake_name, padding=10)
 
         if not self.compact_mode.get():
             control_frame = ttk.Frame(frame)
@@ -110,6 +112,7 @@ class MedicationTab(ttk.Frame):
                     text="🗑",
                     width=3,
                     command=lambda: self.remove_intake(intake_name),
+                    takefocus=0,
                 ).pack(side=tk.RIGHT, padx=2)
 
             ttk.Button(
@@ -117,6 +120,7 @@ class MedicationTab(ttk.Frame):
                 text="↑",
                 width=3,
                 command=lambda: self.move_intake(intake_name, -1),
+                takefocus=0,
             ).pack(side=tk.LEFT, padx=2)
 
             ttk.Button(
@@ -124,10 +128,11 @@ class MedicationTab(ttk.Frame):
                 text="↓",
                 width=3,
                 command=lambda: self.move_intake(intake_name, 1),
+                takefocus=0,
             ).pack(side=tk.LEFT, padx=2)
 
         meds_frame = ttk.Frame(frame)
-        meds_frame.pack(fill=tk.X, expand=True)
+        meds_frame.pack(fill=tk.BOTH, expand=True)
 
         if not self.compact_mode.get():
             add_frame = ttk.Frame(frame)
@@ -140,12 +145,14 @@ class MedicationTab(ttk.Frame):
                 add_frame,
                 text="Добавить таблетку",
                 command=lambda: self.add_medication(intake_name, entry),
+                takefocus=0,
             ).pack(side=tk.LEFT, padx=5)
 
         timer_button = ttk.Button(
             frame,
             text="⏱ Таймер",
             command=lambda: self.start_timer_for_intake(intake_name),
+            takefocus=0,
         )
         timer_button.pack(side=tk.RIGHT, padx=5)
 
@@ -179,8 +186,26 @@ class MedicationTab(ttk.Frame):
         for widget in self.intakes_frame.winfo_children():
             widget.destroy()
 
+        width = self.winfo_width()
+        if width < 600:
+            max_cols = 1
+        elif width < 900:
+            max_cols = 2
+        else:
+            max_cols = 3
+
+        current_row = None
+        col_count = 0
+
         for intake in self.all_intakes:
-            self.create_intake_frame(intake)
+            if col_count % max_cols == 0:
+                current_row = ttk.Frame(self.intakes_frame)
+                current_row.pack(fill=tk.X, expand=True, pady=5)
+
+            frame = self.create_intake_frame(current_row, intake)
+            frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+
+            col_count += 1
 
     def update_medications_list(self, intake_name, frame):
         """Обновляет список таблеток для конкретного приема"""
@@ -198,7 +223,11 @@ class MedicationTab(ttk.Frame):
                 self.save_medications()
 
             check = ttk.Checkbutton(
-                med_frame, text=med["name"], variable=var, command=update_status
+                med_frame,
+                text=med["name"],
+                variable=var,
+                command=update_status,
+                takefocus=0,
             )
             check.pack(side=tk.LEFT)
 

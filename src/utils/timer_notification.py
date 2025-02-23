@@ -275,7 +275,6 @@ class TimerNotification(tk.Toplevel):
         self.fade_in()
 
     def handle_hotkey(self, event):
-        print(event.state, event.keycode)
         if event.state == 131080 or event.state == 131082:
             if event.keycode == 77:
                 self.toggle_sound()
