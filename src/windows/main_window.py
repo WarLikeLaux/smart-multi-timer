@@ -1,3 +1,4 @@
+import json
 import platform
 import threading
 import tkinter as tk
@@ -18,7 +19,16 @@ from utils.constants import IMAGES
 
 class MainWindow(ThemedTk):
     def __init__(self):
-        super().__init__(theme="ubuntu")
+        try:
+            with open("theme_settings.json", "r") as f:
+                settings = json.load(f)
+                initial_theme = settings.get("theme", "ubuntu")
+        except:
+            initial_theme = "ubuntu"
+
+        super().__init__(theme=initial_theme)
+        self.selected_theme = initial_theme
+        self.create_theme_menu()
         self.iconbitmap(default=IMAGES["TRAY_ICON"])
         self.setup_global_styles()
         self.title("Мульти-таймер")
@@ -39,7 +49,33 @@ class MainWindow(ThemedTk):
         if self.is_wsl:
             self.protocol("WM_DELETE_WINDOW", self.quit_app)
         else:
-            self.protocol("WM_DELETE_WINDOW", self.hide_window)
+            self.protocol("WM_DELETE_WINDOW", self.quit_app)
+
+    def create_theme_menu(self):
+        menu_bar = tk.Menu(self)
+        self.config(menu=menu_bar)
+
+        theme_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="Тема", menu=theme_menu)
+
+        for theme in self.get_themes():
+            theme_menu.add_radiobutton(
+                label=theme.capitalize(),
+                value=theme,
+                variable=self.selected_theme,
+                command=lambda t=theme: self.change_theme(t),
+            )
+
+    def change_theme(self, theme_name):
+        try:
+            self.set_theme(theme_name)
+            self.selected_theme = theme_name
+            self.setup_global_styles()
+            with open("theme_settings.json", "w") as f:
+                json.dump({"theme": theme_name}, f)
+
+        except Exception as e:
+            messagebox.showerror("Ошибка", f"Не удалось применить тему: {str(e)}")
 
     @staticmethod
     def check_wsl():
@@ -78,6 +114,9 @@ class MainWindow(ThemedTk):
             ],
         )
 
+        style.configure("TNotebook", takefocus=0)
+        style.configure("TNotebook.Tab", focuscolor="none", takefocus=0)
+
     def setup_ui(self):
         self.notebook = ttk.Notebook(self, takefocus=0)
         self.notebook.configure(takefocus=0)
@@ -111,6 +150,9 @@ class MainWindow(ThemedTk):
 
         self.telegram_integration = TelegramTab(self.telegram_tab)
         self.telegram_integration.pack(expand=True, fill=tk.BOTH)
+
+        style = ttk.Style()
+        style.configure("TNotebook.Tab", focuscolor="none")
 
     def setup_timers_ui(self):
         self.main_frame = ttk.Frame(self.timers_tab)

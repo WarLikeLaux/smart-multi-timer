@@ -59,7 +59,7 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-habits.json
+*.json
 *.txt
 *.old
 !requirements.txt

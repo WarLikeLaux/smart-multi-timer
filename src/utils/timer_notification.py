@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from PIL import Image, ImageTk
+from pygame import mixer
 
 from utils.constants import IMAGES
 
@@ -104,12 +105,30 @@ class TimerNotification(tk.Toplevel):
         )
         close_btn.place(relx=1.0, x=-20, y=10, anchor="ne")
 
+        sound_btn = tk.Button(
+            main_frame,
+            text="🔊",
+            font=("Segoe UI", 16),
+            bg="#1e1e1e",
+            fg="white",
+            activebackground="#404040",
+            activeforeground="white",
+            relief="flat",
+            cursor="hand2",
+            command=self.toggle_sound,
+            width=3,
+            height=1,
+        )
+        sound_btn.place(relx=1.0, x=-70, y=10, anchor="ne")
+        self.sound_btn = sound_btn
+        self.sound_enabled = True
+
         shortcuts_frame = ttk.Frame(main_frame, style="White.TFrame")
         shortcuts_frame.place(relx=0.5, y=10, anchor="n")
 
         shortcuts_label = ttk.Label(
             shortcuts_frame,
-            text="ESC - закрыть    |    CTRL + (1-9) - выбрать таймер    |    ALT + P - отжимания    |    Кликните если клавиши не работают",
+            text="ESC - закрыть    |    CTRL + (1-9) - выбрать таймер    |    ALT + P - отжимания    |    ALT + M - звук    |    Кликните если клавиши не работают",
             font=("Segoe UI", 10),
             background="white",
             foreground="black",
@@ -170,7 +189,7 @@ class TimerNotification(tk.Toplevel):
         )
         pushup_btn.pack(fill=tk.X, padx=100)
 
-        self.bind("<Alt-p>", lambda e: self.quick_pushup())
+        self.bind("<KeyPress>", self.handle_hotkey)
 
         def on_enter(e, b=pushup_btn):
             b.configure(bg="#2d724f")
@@ -254,6 +273,28 @@ class TimerNotification(tk.Toplevel):
 
         self.attributes("-alpha", 0.0)
         self.fade_in()
+
+    def handle_hotkey(self, event):
+        print(event.state, event.keycode)
+        if event.state == 131080 or event.state == 131082:
+            if event.keycode == 77:
+                self.toggle_sound()
+            elif event.keycode == 80:
+                self.quick_pushup()
+
+    def toggle_sound(self):
+        self.sound_enabled = not self.sound_enabled
+        self.sound_btn.configure(text="🔊" if self.sound_enabled else "🔈")
+
+        if not self.sound_enabled:
+            if mixer.get_init():
+                mixer.music.stop()
+            if self.current_timer:
+                self.current_timer.is_running = False
+        else:
+            if self.current_timer:
+                self.current_timer.is_running = True
+                self.current_timer.play_alarm()
 
     def quick_pushup(self):
         input_window = tk.Toplevel(self)

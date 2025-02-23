@@ -446,10 +446,9 @@ class Timer(ttk.Frame):
                 try:
                     mixer.init()
                     mixer.music.load(self.custom_sound)
-                    mixer.music.play()
-                    while mixer.music.get_busy() and self.is_running:
-                        time.sleep(0.1)
-                except Exception:
+                    mixer.music.play(-1)
+                except Exception as e:
+                    print(f"Ошибка воспроизведения custom sound: {e}")
                     self.beep_alarm()
             else:
                 self.beep_alarm()
@@ -459,8 +458,11 @@ class Timer(ttk.Frame):
     def beep_alarm(self):
         def beep_thread():
             while self.is_running:
-                self.sound_player.play_beep()
-                time.sleep(0.5)
+                try:
+                    self.sound_player.play_beep()
+                    time.sleep(0.5)
+                except:
+                    break
 
         self.is_running = True
         threading.Thread(target=beep_thread, daemon=True).start()
