@@ -250,7 +250,7 @@ class Timer(ttk.Frame):
             ("30 минут", 30),
             ("45 минут", 45),
             ("1 час", 60),
-            ("2 часа", 60),
+            ("2 часа", 120),
         ]
 
         for label, minutes in presets:
