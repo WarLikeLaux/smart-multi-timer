@@ -86,6 +86,15 @@ class TelegramTab(ttk.Frame):
         self.is_running = False
         self.update_status("Останавливается...")
         self.log("Останавливаем клиент...")
+        self.update_ui_state(False)
+
+        def disconnect_client():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            if self.client:
+                loop.run_until_complete(self.client.disconnect())
+
+        threading.Thread(target=disconnect_client, daemon=True).start()
 
     async def mark_messages_as_read(self):
         """

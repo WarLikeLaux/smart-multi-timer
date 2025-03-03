@@ -113,7 +113,7 @@ class PushupTrackerTab(ttk.Frame):
         )
         buttons_frame.pack(fill=tk.X, pady=(0, 15))
 
-        for count in [10, 15, 20, 25, 30]:
+        for count in [10, 15, 20, 25, 30, 35, 40, 45, 50, 55]:
             btn = ttk.Button(
                 buttons_frame,
                 text=f"{count}",
@@ -330,7 +330,7 @@ class PushupTrackerTab(ttk.Frame):
         buttons_frame = ttk.Frame(fullscreen)
         buttons_frame.place(relx=0.5, rely=0.8, anchor="center")
 
-        for count in [10, 15, 20, 25, 30]:
+        for count in [10, 15, 20, 25, 30, 35, 40, 45, 50, 55]:
             btn = ttk.Button(
                 buttons_frame,
                 text=str(count),
@@ -345,7 +345,7 @@ class PushupTrackerTab(ttk.Frame):
 
         fullscreen.bind("<Escape>", lambda e: fullscreen.destroy())
 
-        for i, count in enumerate([10, 15, 20, 25, 30], 1):
+        for i, count in enumerate([10, 15, 20, 25, 30, 35, 40, 45, 50, 55], 1):
             fullscreen.bind(
                 str(i), lambda e, c=count: (self.add_pushups(c), fullscreen.destroy())
             )

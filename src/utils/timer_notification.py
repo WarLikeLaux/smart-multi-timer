@@ -333,7 +333,7 @@ class TimerNotification(tk.Toplevel):
         presets_frame = ttk.Frame(main_frame)
         presets_frame.pack(fill=tk.X, pady=(0, 20))
 
-        presets = [10, 15, 20, 25, 30, 35]
+        presets = [20, 25, 30, 35, 40, 45]
         btn_width = 8
         for preset in presets:
             preset_btn = tk.Button(
