@@ -26,6 +26,7 @@ class Timer(ttk.Frame):
         self.initial_time = None
         self.main_window = None
         self.sound_player = SoundPlayer()
+        self.emoji_window = None
         self.setup_ui()
 
     def safe_update_main_window(self):
@@ -90,9 +91,37 @@ class Timer(ttk.Frame):
         left_frame = ttk.Frame(content_frame)
         left_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 15))
 
-        self.description = ttk.Entry(left_frame, font=("Arial", 12))
+        description_frame = ttk.Frame(left_frame)
+        description_frame.pack(fill=tk.X, expand=True)
+
+        self.description = ttk.Entry(description_frame, font=("Arial", 12))
         self.description.insert(0, "Описание таймера")
-        self.description.pack(fill=tk.X, expand=True)
+        self.description.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Добавление контекстного меню для копирования/вставки
+        self.context_menu = tk.Menu(self.description, tearoff=0)
+        self.context_menu.add_command(label="Копировать", command=self.copy_text)
+        self.context_menu.add_command(label="Вставить", command=self.paste_text)
+        self.context_menu.add_command(label="Вырезать", command=self.cut_text)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Выбрать всё", command=self.select_all)
+        
+        # Привязка клавиш и событий мыши для контекстного меню
+        self.description.bind("<Button-3>", self.show_context_menu)
+        self.description.bind("<Control-c>", lambda e: self.copy_text())
+        self.description.bind("<Control-v>", lambda e: self.paste_text())
+        self.description.bind("<Control-x>", lambda e: self.cut_text())
+        self.description.bind("<Control-a>", lambda e: self.select_all())
+        
+        # Кнопка для добавления эмодзи
+        self.emoji_button = ttk.Button(
+            description_frame,
+            text="😀",
+            command=self.show_emoji_picker,
+            width=3,
+            takefocus=0,
+        )
+        self.emoji_button.pack(side=tk.RIGHT, padx=(5, 0))
 
         time_frame = ttk.Frame(content_frame)
         time_frame.pack(side=tk.LEFT, padx=15)
@@ -501,3 +530,111 @@ class Timer(ttk.Frame):
                 self.custom_sound if hasattr(self, "custom_sound") else None
             ),
         }
+
+    # Новые методы для работы с текстом и эмодзи
+    def copy_text(self):
+        try:
+            self.description.clipboard_clear()
+            if self.description.selection_get():
+                self.description.clipboard_append(self.description.selection_get())
+        except tk.TclError:
+            pass
+            
+    def paste_text(self):
+        try:
+            self.description.delete("sel.first", "sel.last")
+        except tk.TclError:
+            pass
+        try:
+            self.description.insert(tk.INSERT, self.description.clipboard_get())
+        except tk.TclError:
+            pass
+        
+    def cut_text(self):
+        try:
+            self.copy_text()
+            self.description.delete("sel.first", "sel.last")
+        except tk.TclError:
+            pass
+            
+    def select_all(self):
+        self.description.select_range(0, tk.END)
+        self.description.icursor(tk.END)
+        
+    def show_context_menu(self, event):
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+            
+    def show_emoji_picker(self):
+        if self.emoji_window and self.emoji_window.winfo_exists():
+            self.emoji_window.destroy()
+            
+        self.emoji_window = tk.Toplevel(self)
+        self.emoji_window.title("Выбор эмодзи")
+        self.emoji_window.transient(self)
+        self.emoji_window.grab_set()
+        
+        # Категории эмодзи
+        categories = {
+            "Действия": ["⏰", "☕", "🍽️", "📚", "💼", "🏃", "🧘", "🛌", "🎮", "📱", "🎧", "📝"],
+            "Перерывы": ["🍵", "🧋", "🍰", "🍪", "🍎", "🥗", "🚶", "💆", "🌿", "🧠", "🍦", "🍺"],
+            "Состояния": ["💤", "⚡", "🔥", "💪", "🎭", "💡", "🎯", "✅", "❌", "⭐", "🏆", "🎖️"],
+            "Работа": ["💻", "📊", "📈", "📞", "📧", "👨‍💻", "👩‍💻", "📁", "🗂️", "🖋️", "🔍", "🎓"],
+            "Прочее": ["🏠", "🌳", "👨‍👩‍👧‍👦", "👥", "🐱", "🐶", "🚗", "🚲", "🛒", "🧹", "🎁", "💰"]
+        }
+        
+        notebook = ttk.Notebook(self.emoji_window)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Создание вкладок по категориям
+        for category, emojis in categories.items():
+            frame = ttk.Frame(notebook)
+            notebook.add(frame, text=category)
+            
+            row, col = 0, 0
+            for emoji in emojis:
+                button = ttk.Button(
+                    frame, 
+                    text=emoji, 
+                    width=3,
+                    command=lambda e=emoji: self.insert_emoji(e)
+                )
+                button.grid(row=row, column=col, padx=5, pady=5)
+                
+                col += 1
+                if col > 5:  # 6 эмодзи в строке
+                    col = 0
+                    row += 1
+        
+        # Добавляем поле для ввода произвольного эмодзи
+        custom_frame = ttk.Frame(self.emoji_window)
+        custom_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        ttk.Label(custom_frame, text="Свой эмодзи:").pack(side=tk.LEFT)
+        
+        custom_emoji = ttk.Entry(custom_frame, width=5, font=("Arial", 12))
+        custom_emoji.pack(side=tk.LEFT, padx=(5, 10))
+        
+        ttk.Button(
+            custom_frame,
+            text="Добавить",
+            command=lambda: self.insert_emoji(custom_emoji.get())
+        ).pack(side=tk.LEFT)
+        
+        # Центрирование окна и установка минимального размера
+        self.emoji_window.update_idletasks()
+        width = self.emoji_window.winfo_width()
+        height = self.emoji_window.winfo_height()
+        x = (self.emoji_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.emoji_window.winfo_screenheight() // 2) - (height // 2)
+        self.emoji_window.geometry(f"{width}x{height}+{x}+{y}")
+        self.emoji_window.minsize(300, 200)
+    
+    def insert_emoji(self, emoji):
+        if emoji:
+            current_position = self.description.index(tk.INSERT)
+            self.description.insert(current_position, emoji)
+            if self.emoji_window and self.emoji_window.winfo_exists():
+                self.emoji_window.destroy()
