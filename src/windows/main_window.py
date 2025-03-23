@@ -166,6 +166,9 @@ class MainWindow(ThemedTk):
         style = ttk.Style()
         style.configure("TNotebook.Tab", focuscolor="none")
 
+        # Сохраняем индекс вкладки таймеров для использования в других модулях
+        self.timers_tab_index = self.notebook.index(self.timers_tab)
+
     def setup_timers_ui(self):
         self.main_frame = ttk.Frame(self.timers_tab)
         self.main_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=15)
