@@ -11,9 +11,12 @@ class MedicationTab(ttk.Frame):
         self.default_intakes = ["Утро", "Завтрак", "Обед", "Ужин", "Перед сном"]
         self.custom_intakes = []
         self.all_intakes = self.default_intakes.copy()
+        self.intake_settings = {}
+        self.toast_notification = None
 
         for intake in self.default_intakes:
             self.medications[intake] = []
+            self.intake_settings[intake] = {"quick_timer_minutes": None}
 
         self.setup_ui()
         self.load_medications()
@@ -28,53 +31,34 @@ class MedicationTab(ttk.Frame):
         title_frame = ttk.Frame(header)
         title_frame.pack(side=tk.LEFT)
 
-        ttk.Label(title_frame, text="Прием лекарств", font=("Arial", 16, "bold")).pack(
-            side=tk.LEFT
-        )
+        ttk.Label(title_frame, text="Прием лекарств", font=("Arial", 16, "bold")).pack(side=tk.LEFT)
 
         self.compact_mode = tk.BooleanVar(value=False)
-        ttk.Checkbutton(
-            title_frame,
-            text="Компактный режим",
-            variable=self.compact_mode,
-            command=self.toggle_compact_mode,
-            takefocus=0,
-        ).pack(side=tk.LEFT, padx=10)
+        ttk.Checkbutton(title_frame, text="Компактный режим", variable=self.compact_mode, command=self.toggle_compact_mode, takefocus=0).pack(side=tk.LEFT, padx=10)
 
         buttons_frame = ttk.Frame(header)
         buttons_frame.pack(side=tk.RIGHT)
 
-        ttk.Button(
-            buttons_frame,
-            text="+ Добавить прием",
-            style="Secondary.TButton",
-            command=self.add_custom_intake,
-            takefocus=0,
-        ).pack(side=tk.LEFT, padx=5)
+        ttk.Button(buttons_frame, text="+ Добавить прием", style="Secondary.TButton", command=self.add_custom_intake, takefocus=0).pack(side=tk.LEFT, padx=5)
+        ttk.Button(buttons_frame, text="Сбросить отметки", style="Secondary.TButton", command=self.reset_all_marks, takefocus=0).pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(
-            buttons_frame,
-            text="Сбросить отметки",
-            style="Secondary.TButton",
-            command=self.reset_all_marks,
-            takefocus=0,
-        ).pack(side=tk.LEFT, padx=5)
-
-        self.canvas = tk.Canvas(main_container)
-        scrollbar = ttk.Scrollbar(
-            main_container, orient="vertical", command=self.canvas.yview
-        )
+        canvas_container = ttk.Frame(main_container)
+        canvas_container.pack(fill=tk.BOTH, expand=True)
+        
+        bg_color = self.winfo_toplevel().cget("bg")
+        
+        self.canvas = tk.Canvas(canvas_container, bg=bg_color, highlightthickness=0, bd=0)
+        scrollbar = ttk.Scrollbar(canvas_container, orient="vertical", command=self.canvas.yview)
 
         self.intakes_frame = ttk.Frame(self.canvas)
+        self.intakes_frame.configure(style="TFrame")
 
         self.canvas.configure(yscrollcommand=scrollbar.set)
 
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self.canvas_frame = self.canvas.create_window(
-            (0, 0), window=self.intakes_frame, anchor="nw"
-        )
+        self.canvas_frame = self.canvas.create_window((0, 0), window=self.intakes_frame, anchor="nw")
 
         self.intakes_frame.bind("<Configure>", self.on_frame_configure)
         self.canvas.bind("<Configure>", self.on_canvas_configure)
@@ -82,54 +66,69 @@ class MedicationTab(ttk.Frame):
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
     def _on_mousewheel(self, event):
-        """Обработка прокрутки колесиком мыши"""
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        if not self.compact_mode.get():
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def on_frame_configure(self, event=None):
-        """Обновляет скроллбар при изменении размера содержимого"""
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        if not self.compact_mode.get():
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def on_canvas_configure(self, event):
-        """Растягивает фрейм по ширине канваса"""
-        self.canvas.itemconfig(self.canvas_frame, width=event.width)
+        width = event.width
+        self.canvas.itemconfig(self.canvas_frame, width=width)
+        
+        if self.compact_mode.get():
+            self.update_intakes_display()
 
     def toggle_compact_mode(self):
-        """Переключает компактный режим отображения"""
         self.update_intakes_display()
-        self.canvas.itemconfig(self.canvas_frame, width=self.canvas.winfo_width())
+        
+        is_compact = self.compact_mode.get()
+        width = self.canvas.winfo_width()
+        
+        if is_compact:
+            self.canvas.yview_moveto(0)
+        else:
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def create_intake_frame(self, parent, intake_name):
-        """Создает фрейм для одного приема"""
         frame = ttk.LabelFrame(parent, text=intake_name, padding=10)
-
+        
         control_frame = ttk.Frame(frame)
         control_frame.pack(fill=tk.X, pady=(0, 5))
 
         if not self.compact_mode.get():
             if intake_name not in self.default_intakes:
-                ttk.Button(
-                    control_frame,
-                    text="🗑",
-                    width=3,
-                    command=lambda: self.remove_intake(intake_name),
-                    takefocus=0,
-                ).pack(side=tk.RIGHT, padx=2)
+                ttk.Button(control_frame, text="🗑", width=3, command=lambda: self.remove_intake(intake_name), takefocus=0).pack(side=tk.RIGHT, padx=2)
 
-            ttk.Button(
-                control_frame,
-                text="↑",
-                width=3,
-                command=lambda: self.move_intake(intake_name, -1),
-                takefocus=0,
-            ).pack(side=tk.LEFT, padx=2)
-
-            ttk.Button(
-                control_frame,
-                text="↓",
-                width=3,
-                command=lambda: self.move_intake(intake_name, 1),
-                takefocus=0,
-            ).pack(side=tk.LEFT, padx=2)
+            ttk.Button(control_frame, text="↑", width=3, command=lambda: self.move_intake(intake_name, -1), takefocus=0).pack(side=tk.LEFT, padx=2)
+            ttk.Button(control_frame, text="↓", width=3, command=lambda: self.move_intake(intake_name, 1), takefocus=0).pack(side=tk.LEFT, padx=2)
+            
+            timer_settings_frame = ttk.Frame(control_frame)
+            timer_settings_frame.pack(side=tk.RIGHT, padx=(10, 0))
+            
+            ttk.Label(timer_settings_frame, text="Быстрый таймер (мин):").pack(side=tk.LEFT)
+            
+            quick_timer_var = tk.StringVar(value=str(self.intake_settings.get(intake_name, {}).get("quick_timer_minutes", "")) 
+                                          if self.intake_settings.get(intake_name, {}).get("quick_timer_minutes") is not None else "")
+            
+            quick_timer_entry = ttk.Spinbox(timer_settings_frame, from_=1, to=180, width=5, textvariable=quick_timer_var)
+            quick_timer_entry.pack(side=tk.LEFT, padx=5)
+            
+            def save_quick_timer_minutes(event=None):
+                try:
+                    value = quick_timer_var.get().strip()
+                    if value:
+                        self.intake_settings[intake_name]["quick_timer_minutes"] = int(value)
+                    else:
+                        self.intake_settings[intake_name]["quick_timer_minutes"] = None
+                    self.save_medications()
+                    self.update_intakes_display()
+                except ValueError:
+                    pass
+            
+            quick_timer_entry.bind("<FocusOut>", save_quick_timer_minutes)
+            quick_timer_entry.bind("<Return>", save_quick_timer_minutes)
 
         meds_frame = ttk.Frame(frame)
         meds_frame.pack(fill=tk.BOTH, expand=True)
@@ -141,49 +140,36 @@ class MedicationTab(ttk.Frame):
             entry = ttk.Entry(add_frame)
             entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
 
-            ttk.Button(
-                add_frame,
-                text="Добавить таблетку",
-                command=lambda: self.add_medication(intake_name, entry),
-                takefocus=0,
-            ).pack(side=tk.LEFT, padx=5)
+            ttk.Button(add_frame, text="Добавить таблетку", command=lambda: self.add_medication(intake_name, entry), takefocus=0).pack(side=tk.LEFT, padx=5)
 
-        # Создаем фрейм для размещения кнопок внизу
         buttons_frame = ttk.Frame(frame)
         buttons_frame.pack(fill=tk.X, pady=(10, 0))
         
-        # Проверяем, все ли лекарства отмечены, чтобы установить правильный текст кнопки
         all_taken = False
         if intake_name in self.medications and self.medications[intake_name]:
             all_taken = all(med.get("taken", False) for med in self.medications[intake_name])
         
         button_text = "Сбросить все" if all_taken else "Отметить все"
         
-        # Добавляем кнопку "Отметить все/Сбросить все"
-        mark_all_button = ttk.Button(
-            buttons_frame,
-            text=button_text,
-            command=lambda name=intake_name: self.toggle_all_medications(name),
-            style="Secondary.TButton",
-            takefocus=0,
-        )
+        mark_all_button = ttk.Button(buttons_frame, text=button_text, command=lambda name=intake_name: self.toggle_all_medications(name), style="Secondary.TButton", takefocus=0)
         mark_all_button.pack(side=tk.LEFT, padx=5)
         
-        # Добавляем кнопку таймера в тот же фрейм
-        timer_button = ttk.Button(
-            buttons_frame,
-            text="⏱ Таймер",
-            command=lambda: self.start_timer_for_intake(intake_name),
-            takefocus=0,
-        )
-        timer_button.pack(side=tk.RIGHT, padx=5)
+        buttons_right_frame = ttk.Frame(buttons_frame)
+        buttons_right_frame.pack(side=tk.RIGHT)
+        
+        timer_button = ttk.Button(buttons_right_frame, text="⏱ Таймер", command=lambda: self.start_timer_for_intake(intake_name), takefocus=0)
+        timer_button.pack(side=tk.LEFT, padx=5)
+        
+        quick_timer_minutes = self.intake_settings.get(intake_name, {}).get("quick_timer_minutes")
+        if quick_timer_minutes is not None:
+            quick_timer_button = ttk.Button(buttons_right_frame, text=f"⏱ {quick_timer_minutes} мин", command=lambda minutes=quick_timer_minutes, name=intake_name: self.create_quick_timer(name, minutes), takefocus=0)
+            quick_timer_button.pack(side=tk.LEFT, padx=5)
 
         self.update_medications_list(intake_name, meds_frame)
         
         return frame
 
     def move_intake(self, intake_name, direction):
-        """Перемещает прием вверх/вниз в списке"""
         current_index = self.all_intakes.index(intake_name)
         new_index = current_index + direction
 
@@ -194,7 +180,6 @@ class MedicationTab(ttk.Frame):
             self.save_medications()
 
     def move_medication(self, intake_name, med_name, direction):
-        """Перемещает таблетку вверх/вниз в списке"""
         meds = self.medications[intake_name]
         for i, med in enumerate(meds):
             if med["name"] == med_name:
@@ -205,9 +190,11 @@ class MedicationTab(ttk.Frame):
                     break
 
     def update_intakes_display(self):
-        """Обновляет отображение всех приемов"""
         for widget in self.intakes_frame.winfo_children():
             widget.destroy()
+
+        bg_color = self.winfo_toplevel().cget("bg")
+        self.canvas.configure(bg=bg_color)
 
         width = self.winfo_width()
         if width < 600:
@@ -230,8 +217,12 @@ class MedicationTab(ttk.Frame):
 
             col_count += 1
 
+        self.intakes_frame.update_idletasks()
+        
+        if not self.compact_mode.get():
+            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
     def update_display(self):
-        """Обновляет состояние чекбоксов без полной перерисовки"""
         for intake_name, medications in self.medications.items():
             for widget in self.intakes_frame.winfo_children():
                 if isinstance(widget, ttk.Frame):
@@ -240,7 +231,6 @@ class MedicationTab(ttk.Frame):
                             isinstance(child, ttk.LabelFrame)
                             and child.cget("text") == intake_name
                         ):
-                            # Обновляем текст кнопки "Отметить все/Сбросить все"
                             for control_frame in child.winfo_children():
                                 if isinstance(control_frame, ttk.Frame):
                                     for button in control_frame.winfo_children():
@@ -251,7 +241,6 @@ class MedicationTab(ttk.Frame):
                                             button.configure(text="Сбросить все" if all_taken else "Отметить все")
                                             break
                             
-                            # Обновляем состояние чекбоксов
                             meds_frame = None
                             for frame in child.winfo_children():
                                 if (
@@ -272,7 +261,7 @@ class MedicationTab(ttk.Frame):
                                         for child in med_frame.winfo_children():
                                             if isinstance(child, ttk.Checkbutton):
                                                 var = med.get("var")
-                                                if var and hasattr(var, 'set'):  # Проверяем что var не строка и имеет метод set
+                                                if var and hasattr(var, 'set'):
                                                     var.set(med.get("taken", False))
                                     
     def update_medications_list(self, intake_name, frame):
@@ -316,22 +305,11 @@ class MedicationTab(ttk.Frame):
                             def update():
                                 medication["taken"] = medication["var"].get()
                                 self.save_medications()
-                                # Проверяем, все ли таблетки отмечены, и обновляем текст кнопки
                                 self.update_mark_all_button(intake_name)
-
                             return update
 
-                        check = ttk.Checkbutton(
-                            frame,
-                            text=med["name"],
-                            variable=var,
-                            command=make_update_func(med),
-                        )
-
-                        check.grid(
-                            row=row_idx, column=col_idx, sticky="w", padx=5, pady=2
-                        )
-
+                        check = ttk.Checkbutton(frame, text=med["name"], variable=var, command=make_update_func(med))
+                        check.grid(row=row_idx, column=col_idx, sticky="w", padx=5, pady=2)
                         frame.grid_columnconfigure(col_idx, weight=1)
                         idx += 1
         else:
@@ -346,58 +324,27 @@ class MedicationTab(ttk.Frame):
                     def update():
                         medication["taken"] = medication["var"].get()
                         self.save_medications()
-                        # Проверяем, все ли таблетки отмечены, и обновляем текст кнопки
                         self.update_mark_all_button(intake_name)
-
                     return update
 
-                check = ttk.Checkbutton(
-                    med_frame,
-                    text=med["name"],
-                    variable=var,
-                    command=make_update_func(med),
-                )
+                check = ttk.Checkbutton(med_frame, text=med["name"], variable=var, command=make_update_func(med))
                 check.pack(side=tk.LEFT)
 
                 buttons_frame = ttk.Frame(med_frame)
                 buttons_frame.pack(side=tk.RIGHT)
 
-                ttk.Button(
-                    buttons_frame,
-                    text="↑",
-                    width=3,
-                    command=lambda m=med["name"]: self.move_medication(
-                        intake_name, m, -1
-                    ),
-                ).pack(side=tk.LEFT, padx=2)
-
-                ttk.Button(
-                    buttons_frame,
-                    text="↓",
-                    width=3,
-                    command=lambda m=med["name"]: self.move_medication(
-                        intake_name, m, 1
-                    ),
-                ).pack(side=tk.LEFT, padx=2)
-
-                ttk.Button(
-                    buttons_frame,
-                    text="✕",
-                    width=3,
-                    command=lambda m=med: self.remove_medication(intake_name, m),
-                ).pack(side=tk.LEFT, padx=2)
+                ttk.Button(buttons_frame, text="↑", width=3, command=lambda m=med["name"]: self.move_medication(intake_name, m, -1)).pack(side=tk.LEFT, padx=2)
+                ttk.Button(buttons_frame, text="↓", width=3, command=lambda m=med["name"]: self.move_medication(intake_name, m, 1)).pack(side=tk.LEFT, padx=2)
+                ttk.Button(buttons_frame, text="✕", width=3, command=lambda m=med: self.remove_medication(intake_name, m)).pack(side=tk.LEFT, padx=2)
 
     def update_mark_all_button(self, intake_name):
-        """Обновляет текст кнопки в зависимости от состояния всех лекарств в приеме"""
         if intake_name in self.medications:
             all_taken = all(med.get("taken", False) for med in self.medications[intake_name])
             
-            # Ищем кнопку для этого приема
             for widget in self.intakes_frame.winfo_children():
                 if isinstance(widget, ttk.Frame):
                     for child in widget.winfo_children():
                         if isinstance(child, ttk.LabelFrame) and child.cget("text") == intake_name:
-                            # Ищем кнопку в buttons_frame (последний фрейм)
                             for frame in child.winfo_children():
                                 if isinstance(frame, ttk.Frame):
                                     for button in frame.winfo_children():
@@ -409,7 +356,6 @@ class MedicationTab(ttk.Frame):
                                             return
 
     def add_medication(self, intake_name, entry):
-        """Добавляет новую таблетку к приему"""
         name = entry.get().strip()
         if name:
             if intake_name not in self.medications:
@@ -422,32 +368,51 @@ class MedicationTab(ttk.Frame):
             self.save_medications()
 
     def remove_medication(self, intake_name, medication):
-        """Удаляет таблетку из приема"""
         if intake_name in self.medications:
             self.medications[intake_name].remove(medication)
             self.update_intakes_display()
             self.save_medications()
 
     def add_custom_intake(self):
-        """Добавляет кастомный прием"""
         dialog = tk.Toplevel(self)
         dialog.title("Новый прием")
-        dialog.geometry("300x150")
+        dialog.geometry("300x200")
         dialog.transient(self)
         dialog.grab_set()
 
         ttk.Label(dialog, text="Название приема:").pack(pady=(20, 5))
         entry = ttk.Entry(dialog, width=40)
-        entry.pack(pady=(0, 20))
+        entry.pack(pady=(0, 10))
         entry.focus()
+        
+        timer_frame = ttk.Frame(dialog)
+        timer_frame.pack(fill=tk.X, pady=(0, 10), padx=20)
+        
+        ttk.Label(timer_frame, text="Быстрый таймер (мин):").pack(side=tk.LEFT)
+        
+        quick_timer_var = tk.StringVar(value="")
+        quick_timer_entry = ttk.Spinbox(
+            timer_frame,
+            from_=1,
+            to=180,
+            width=5,
+            textvariable=quick_timer_var,
+        )
+        quick_timer_entry.pack(side=tk.LEFT, padx=5)
 
         def save():
             name = entry.get().strip()
             if name:
                 if name not in self.all_intakes:
+                    quick_timer_value = quick_timer_var.get().strip()
+                    quick_timer_minutes = int(quick_timer_value) if quick_timer_value else None
+                    
                     self.custom_intakes.append(name)
                     self.all_intakes.append(name)
                     self.medications[name] = []
+                    
+                    self.intake_settings[name] = {"quick_timer_minutes": quick_timer_minutes}
+                    
                     self.update_intakes_display()
                     self.save_medications()
                     dialog.destroy()
@@ -460,7 +425,6 @@ class MedicationTab(ttk.Frame):
         ttk.Button(dialog, text="Отмена", command=dialog.destroy).pack(pady=5)
 
     def reset_all_marks(self):
-        """Сбрасывает все отметки о приеме"""
         if messagebox.askyesno("Подтверждение", "Сбросить все отметки о приеме?"):
             for intake in self.medications:
                 for med in self.medications[intake]:
@@ -469,7 +433,6 @@ class MedicationTab(ttk.Frame):
             self.save_medications()
 
     def start_timer_for_intake(self, intake_name):
-        """Запускает таймер для приема"""
         dialog = tk.Toplevel(self)
         dialog.title(f"Таймер для приема: {intake_name}")
         dialog.geometry("500x750")
@@ -477,7 +440,6 @@ class MedicationTab(ttk.Frame):
         dialog.grab_set()
         dialog.configure(bg="#f5f5f5")
 
-        # Стили для современного UI
         style = ttk.Style()
         style.configure("Modern.TButton", font=("Segoe UI", 11), padding=8)
         style.configure("Preset.TButton", font=("Segoe UI", 11), padding=8)
@@ -485,16 +447,10 @@ class MedicationTab(ttk.Frame):
             "Header.TLabel", font=("Segoe UI", 14, "bold"), background="#f5f5f5"
         )
         style.configure("Subheader.TLabel", font=("Segoe UI", 12), background="#f5f5f5")
-        # style.configure("TFrame", background="#f5f5f5")
-        # style.configure("TLabelframe", background="#f5f5f5")
-        # style.configure(
-        #     "TLabelframe.Label", background="#f5f5f5", font=("Segoe UI", 11)
-        # )
 
         main_frame = ttk.Frame(dialog, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Заголовок
         ttk.Label(
             main_frame, text=f"Напоминание о приеме лекарств", style="Header.TLabel"
         ).pack(pady=(0, 10))
@@ -506,17 +462,14 @@ class MedicationTab(ttk.Frame):
             wraplength=460,
         ).pack(pady=(0, 20))
 
-        # Фрейм быстрых пресетов
         presets_frame = ttk.LabelFrame(
             main_frame, text="Быстрый выбор времени", padding=15
         )
         presets_frame.pack(fill=tk.X, pady=(0, 15))
 
-        # Верхний ряд пресетов
         top_preset_frame = ttk.Frame(presets_frame)
         top_preset_frame.pack(fill=tk.X, pady=(0, 5))
 
-        # Нижний ряд пресетов
         bottom_preset_frame = ttk.Frame(presets_frame)
         bottom_preset_frame.pack(fill=tk.X)
 
@@ -524,7 +477,6 @@ class MedicationTab(ttk.Frame):
 
         presets_bottom = [("45 мин", 45), ("1 час", 60), ("2 часа", 120)]
 
-        # Создаем кнопки верхнего ряда
         for label, minutes in presets_top:
             btn = ttk.Button(
                 top_preset_frame,
@@ -537,7 +489,6 @@ class MedicationTab(ttk.Frame):
             )
             btn.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
 
-        # Создаем кнопки нижнего ряда
         for label, minutes in presets_bottom:
             btn = ttk.Button(
                 bottom_preset_frame,
@@ -550,18 +501,15 @@ class MedicationTab(ttk.Frame):
             )
             btn.pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
 
-        # Фрейм для собственного времени
         manual_frame = ttk.LabelFrame(main_frame, text="Своё время", padding=15)
         manual_frame.pack(fill=tk.X, pady=(0, 20))
 
         time_frame = ttk.Frame(manual_frame)
         time_frame.pack(fill=tk.X, pady=10)
 
-        # Переменные для часов и минут
         hours_var = tk.StringVar(value="0")
         minutes_var = tk.StringVar(value="30")
 
-        # Контейнер для часов
         hours_container = ttk.Frame(time_frame)
         hours_container.pack(side=tk.LEFT, padx=(0, 15))
 
@@ -578,7 +526,6 @@ class MedicationTab(ttk.Frame):
         )
         hours_spin.pack()
 
-        # Контейнер для минут
         minutes_container = ttk.Frame(time_frame)
         minutes_container.pack(side=tk.LEFT)
 
@@ -595,7 +542,6 @@ class MedicationTab(ttk.Frame):
         )
         minutes_spin.pack()
 
-        # Функция для запуска таймера с произвольным временем
         def start_custom_timer():
             try:
                 total_minutes = int(hours_var.get()) * 60 + int(minutes_var.get())
@@ -606,7 +552,6 @@ class MedicationTab(ttk.Frame):
             except ValueError:
                 messagebox.showwarning("Ошибка", "Введите корректное время")
 
-        # Кнопка для запуска таймера
         start_btn = ttk.Button(
             manual_frame,
             text="Запустить таймер",
@@ -615,7 +560,6 @@ class MedicationTab(ttk.Frame):
         )
         start_btn.pack(pady=(10, 0), padx=5, fill=tk.X)
 
-        # Отображение лекарств для данного приема
         meds_frame = ttk.LabelFrame(main_frame, text="Лекарства для приема", padding=15)
         meds_frame.pack(fill=tk.X, expand=True)
 
@@ -637,7 +581,6 @@ class MedicationTab(ttk.Frame):
                 font=("Segoe UI", 11, "italic"),
             ).pack(pady=5)
 
-        # Кнопки внизу
         buttons_frame = ttk.Frame(main_frame)
         buttons_frame.pack(fill=tk.X, pady=(20, 0))
 
@@ -645,7 +588,6 @@ class MedicationTab(ttk.Frame):
             buttons_frame, text="Отмена", style="Modern.TButton", command=dialog.destroy
         ).pack(side=tk.RIGHT)
 
-        # Обработка нажатия клавиш
         def on_key(event):
             if event.keysym == "Return":
                 start_custom_timer()
@@ -654,7 +596,6 @@ class MedicationTab(ttk.Frame):
 
         dialog.bind("<Key>", on_key)
 
-        # Центрируем окно
         dialog.update_idletasks()
         width = dialog.winfo_width()
         height = dialog.winfo_height()
@@ -662,11 +603,9 @@ class MedicationTab(ttk.Frame):
         y = (dialog.winfo_screenheight() // 2) - (height // 2)
         dialog.geometry(f"+{x}+{y}")
 
-        # Фокус на спинбоксе минут
         minutes_spin.focus_set()
 
     def remove_intake(self, intake_name):
-        """Удаляет прием из списка"""
         if intake_name in self.default_intakes:
             messagebox.showwarning("Ошибка", "Нельзя удалить стандартный прием")
             return
@@ -714,14 +653,48 @@ class MedicationTab(ttk.Frame):
         if dialog:
             dialog.destroy()
 
+    def create_quick_timer(self, intake_name, minutes):
+        self.create_intake_timer(intake_name, minutes)
+        untaken_meds = [med["name"] for med in self.medications.get(intake_name, []) if not med.get("taken", False)]
+        med_text = f" для {', '.join(untaken_meds)}" if untaken_meds else ""
+        self.show_toast_notification(f"✓ Создан таймер на {minutes} минут для приема '{intake_name}'{med_text}")
+
+    def show_toast_notification(self, message, duration=3000):
+        if self.toast_notification and self.toast_notification.winfo_exists():
+            self.toast_notification.destroy()
+        
+        self.toast_notification = tk.Toplevel(self)
+        self.toast_notification.overrideredirect(True)
+        
+        style = ttk.Style()
+        toast_bg = style.lookup("TFrame", "background")
+        
+        frame = ttk.Frame(self.toast_notification, style="Toast.TFrame")
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        style.configure("Toast.TFrame", background=toast_bg)
+        style.configure("Toast.TLabel", background=toast_bg, font=("Segoe UI", 10))
+        
+        label = ttk.Label(frame, text=message, style="Toast.TLabel", wraplength=280)
+        label.pack(pady=10, padx=15)
+        
+        main_window = self.winfo_toplevel()
+        x = main_window.winfo_x() + main_window.winfo_width() - 320
+        y = main_window.winfo_y() + main_window.winfo_height() - 100
+        
+        self.toast_notification.geometry(f"+{x}+{y}")
+        self.toast_notification.lift()
+        
+        self.toast_notification.after(duration, lambda: self.toast_notification.destroy() if self.toast_notification and self.toast_notification.winfo_exists() else None)
+
     def save_medications(self):
-        """Сохраняет конфигурацию в файл"""
         data = {
             "medications": {},
             "all_intakes": self.all_intakes,
             "default_intakes": self.default_intakes,
             "custom_intakes": self.custom_intakes,
             "compact_mode": self.compact_mode.get(),
+            "intake_settings": self.intake_settings,
         }
 
         for intake_name, medications in self.medications.items():
@@ -741,7 +714,6 @@ class MedicationTab(ttk.Frame):
             messagebox.showerror("Ошибка", "Не удалось сохранить конфигурацию")
 
     def load_medications(self):
-        """Загружает конфигурацию из файла"""
         try:
             with open("medications.json", "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -749,43 +721,47 @@ class MedicationTab(ttk.Frame):
                 self.all_intakes = data.get("all_intakes", self.default_intakes.copy())
                 self.default_intakes = data.get("default_intakes", self.default_intakes)
                 self.custom_intakes = data.get("custom_intakes", [])
-
                 self.compact_mode.set(data.get("compact_mode", False))
+                self.intake_settings = data.get("intake_settings", {})
+
+                for intake in self.all_intakes:
+                    if intake not in self.intake_settings:
+                        self.intake_settings[intake] = {"quick_timer_minutes": None}
 
                 self.medications = {}
                 for intake_name, medications in data.get("medications", {}).items():
-                    self.medications[intake_name] = [
-                        {
-                            "name": med["name"],
-                            "taken": med.get("taken", False),
-                        }
-                        for med in medications
-                    ]
+                    if intake_name in self.all_intakes:
+                        self.medications[intake_name] = [
+                            {
+                                "name": med["name"],
+                                "taken": med.get("taken", False),
+                            }
+                            for med in medications
+                        ]
 
                 self.update_intakes_display()
         except FileNotFoundError:
+            for intake in self.default_intakes:
+                if intake not in self.medications:
+                    self.medications[intake] = []
+                if intake not in self.intake_settings:
+                    self.intake_settings[intake] = {"quick_timer_minutes": None}
             self.update_intakes_display()
         except Exception as e:
             print(f"Ошибка загрузки конфигурации: {e}")
             messagebox.showerror("Ошибка", "Не удалось загрузить сохраненные данные")
 
     def toggle_all_medications(self, intake_name):
-        """Переключает состояние всех лекарств в приеме (отметить/сбросить все)"""
         if intake_name in self.medications:
-            # Проверяем, все ли лекарства уже отмечены
             all_taken = all(med.get("taken", False) for med in self.medications[intake_name])
             
-            # Если все отмечены, сбрасываем все, иначе отмечаем все
             new_state = not all_taken
             
-            # Устанавливаем новое состояние для всех лекарств
             for med in self.medications[intake_name]:
                 med["taken"] = new_state
                 if "var" in med and hasattr(med["var"], 'set'):
                     med["var"].set(new_state)
             
-            # Сохраняем изменения
             self.save_medications()
             
-            # Обновляем интерфейс
             self.update_display()
