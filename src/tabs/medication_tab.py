@@ -102,10 +102,10 @@ class MedicationTab(ttk.Frame):
         """Создает фрейм для одного приема"""
         frame = ttk.LabelFrame(parent, text=intake_name, padding=10)
 
-        if not self.compact_mode.get():
-            control_frame = ttk.Frame(frame)
-            control_frame.pack(fill=tk.X, pady=(0, 5))
+        control_frame = ttk.Frame(frame)
+        control_frame.pack(fill=tk.X, pady=(0, 5))
 
+        if not self.compact_mode.get():
             if intake_name not in self.default_intakes:
                 ttk.Button(
                     control_frame,
@@ -148,8 +148,30 @@ class MedicationTab(ttk.Frame):
                 takefocus=0,
             ).pack(side=tk.LEFT, padx=5)
 
+        # Создаем фрейм для размещения кнопок внизу
+        buttons_frame = ttk.Frame(frame)
+        buttons_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        # Проверяем, все ли лекарства отмечены, чтобы установить правильный текст кнопки
+        all_taken = False
+        if intake_name in self.medications and self.medications[intake_name]:
+            all_taken = all(med.get("taken", False) for med in self.medications[intake_name])
+        
+        button_text = "Сбросить все" if all_taken else "Отметить все"
+        
+        # Добавляем кнопку "Отметить все/Сбросить все"
+        mark_all_button = ttk.Button(
+            buttons_frame,
+            text=button_text,
+            command=lambda name=intake_name: self.toggle_all_medications(name),
+            style="Secondary.TButton",
+            takefocus=0,
+        )
+        mark_all_button.pack(side=tk.LEFT, padx=5)
+        
+        # Добавляем кнопку таймера в тот же фрейм
         timer_button = ttk.Button(
-            frame,
+            buttons_frame,
             text="⏱ Таймер",
             command=lambda: self.start_timer_for_intake(intake_name),
             takefocus=0,
@@ -157,6 +179,7 @@ class MedicationTab(ttk.Frame):
         timer_button.pack(side=tk.RIGHT, padx=5)
 
         self.update_medications_list(intake_name, meds_frame)
+        
         return frame
 
     def move_intake(self, intake_name, direction):
@@ -217,8 +240,19 @@ class MedicationTab(ttk.Frame):
                             isinstance(child, ttk.LabelFrame)
                             and child.cget("text") == intake_name
                         ):
+                            # Обновляем текст кнопки "Отметить все/Сбросить все"
+                            for control_frame in child.winfo_children():
+                                if isinstance(control_frame, ttk.Frame):
+                                    for button in control_frame.winfo_children():
+                                        if isinstance(button, ttk.Button) and (
+                                            button.cget("text") == "Отметить все" or button.cget("text") == "Сбросить все"
+                                        ):
+                                            all_taken = all(med.get("taken", False) for med in self.medications[intake_name])
+                                            button.configure(text="Сбросить все" if all_taken else "Отметить все")
+                                            break
+                            
+                            # Обновляем состояние чекбоксов
                             meds_frame = None
-
                             for frame in child.winfo_children():
                                 if (
                                     isinstance(frame, ttk.Frame)
@@ -232,17 +266,15 @@ class MedicationTab(ttk.Frame):
                                     break
 
                             if meds_frame:
-                                checkbuttons = []
-                                for med_frame in meds_frame.winfo_children():
-                                    for child in med_frame.winfo_children():
-                                        if isinstance(child, ttk.Checkbutton):
-                                            checkbuttons.append(child)
-
-                                for med, check in zip(medications, checkbuttons):
-                                    var = check.cget("variable")
-                                    if var:
-                                        var.set(med.get("taken", False))
-
+                                for i, med in enumerate(medications):
+                                    if i < len(meds_frame.winfo_children()):
+                                        med_frame = meds_frame.winfo_children()[i]
+                                        for child in med_frame.winfo_children():
+                                            if isinstance(child, ttk.Checkbutton):
+                                                var = med.get("var")
+                                                if var and hasattr(var, 'set'):  # Проверяем что var не строка и имеет метод set
+                                                    var.set(med.get("taken", False))
+                                    
     def update_medications_list(self, intake_name, frame):
         for widget in frame.winfo_children():
             widget.destroy()
@@ -280,10 +312,12 @@ class MedicationTab(ttk.Frame):
                         var = tk.BooleanVar(value=med.get("taken", False))
                         med["var"] = var
 
-                        def make_update_func(medication):
+                        def make_update_func(medication, intake_name=intake_name):
                             def update():
                                 medication["taken"] = medication["var"].get()
                                 self.save_medications()
+                                # Проверяем, все ли таблетки отмечены, и обновляем текст кнопки
+                                self.update_mark_all_button(intake_name)
 
                             return update
 
@@ -308,10 +342,12 @@ class MedicationTab(ttk.Frame):
                 var = tk.BooleanVar(value=med.get("taken", False))
                 med["var"] = var
 
-                def make_update_func(medication):
+                def make_update_func(medication, intake_name=intake_name):
                     def update():
                         medication["taken"] = medication["var"].get()
                         self.save_medications()
+                        # Проверяем, все ли таблетки отмечены, и обновляем текст кнопки
+                        self.update_mark_all_button(intake_name)
 
                     return update
 
@@ -350,6 +386,27 @@ class MedicationTab(ttk.Frame):
                     width=3,
                     command=lambda m=med: self.remove_medication(intake_name, m),
                 ).pack(side=tk.LEFT, padx=2)
+
+    def update_mark_all_button(self, intake_name):
+        """Обновляет текст кнопки в зависимости от состояния всех лекарств в приеме"""
+        if intake_name in self.medications:
+            all_taken = all(med.get("taken", False) for med in self.medications[intake_name])
+            
+            # Ищем кнопку для этого приема
+            for widget in self.intakes_frame.winfo_children():
+                if isinstance(widget, ttk.Frame):
+                    for child in widget.winfo_children():
+                        if isinstance(child, ttk.LabelFrame) and child.cget("text") == intake_name:
+                            # Ищем кнопку в buttons_frame (последний фрейм)
+                            for frame in child.winfo_children():
+                                if isinstance(frame, ttk.Frame):
+                                    for button in frame.winfo_children():
+                                        if isinstance(button, ttk.Button) and (
+                                            button.cget("text") == "Отметить все" or 
+                                            button.cget("text") == "Сбросить все"
+                                        ):
+                                            button.configure(text="Сбросить все" if all_taken else "Отметить все")
+                                            return
 
     def add_medication(self, intake_name, entry):
         """Добавляет новую таблетку к приему"""
@@ -711,3 +768,24 @@ class MedicationTab(ttk.Frame):
         except Exception as e:
             print(f"Ошибка загрузки конфигурации: {e}")
             messagebox.showerror("Ошибка", "Не удалось загрузить сохраненные данные")
+
+    def toggle_all_medications(self, intake_name):
+        """Переключает состояние всех лекарств в приеме (отметить/сбросить все)"""
+        if intake_name in self.medications:
+            # Проверяем, все ли лекарства уже отмечены
+            all_taken = all(med.get("taken", False) for med in self.medications[intake_name])
+            
+            # Если все отмечены, сбрасываем все, иначе отмечаем все
+            new_state = not all_taken
+            
+            # Устанавливаем новое состояние для всех лекарств
+            for med in self.medications[intake_name]:
+                med["taken"] = new_state
+                if "var" in med and hasattr(med["var"], 'set'):
+                    med["var"].set(new_state)
+            
+            # Сохраняем изменения
+            self.save_medications()
+            
+            # Обновляем интерфейс
+            self.update_display()
