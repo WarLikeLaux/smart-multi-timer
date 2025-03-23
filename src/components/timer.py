@@ -98,7 +98,6 @@ class Timer(ttk.Frame):
         self.description.insert(0, "Описание таймера")
         self.description.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        # Добавление контекстного меню для копирования/вставки
         self.context_menu = tk.Menu(self.description, tearoff=0)
         self.context_menu.add_command(label="Копировать", command=self.copy_text)
         self.context_menu.add_command(label="Вставить", command=self.paste_text)
@@ -106,14 +105,12 @@ class Timer(ttk.Frame):
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Выбрать всё", command=self.select_all)
 
-        # Привязка клавиш и событий мыши для контекстного меню
         self.description.bind("<Button-3>", self.show_context_menu)
         self.description.bind("<Control-c>", lambda e: self.copy_text())
         self.description.bind("<Control-v>", lambda e: self.paste_text())
         self.description.bind("<Control-x>", lambda e: self.cut_text())
         self.description.bind("<Control-a>", lambda e: self.select_all())
 
-        # Кнопка для добавления эмодзи
         self.emoji_button = ttk.Button(
             description_frame,
             text="😀",
@@ -535,7 +532,6 @@ class Timer(ttk.Frame):
             ),
         }
 
-    # Новые методы для работы с текстом и эмодзи
     def copy_text(self):
         try:
             self.description.clipboard_clear()
@@ -580,7 +576,6 @@ class Timer(ttk.Frame):
         self.emoji_window.transient(self)
         self.emoji_window.grab_set()
 
-        # Категории эмодзи
         categories = {
             "Действия": ["⏰", "☕", "🍽️", "📚", "💼", "🏃", "🧘", "🛌", "🎮", "📱", "🎧", "📝"],
             "Перерывы": ["🍵", "🧋", "🍰", "🍪", "🍎", "🥗", "🚶", "💆", "🌿", "🧠", "🍦", "🍺"],
@@ -618,7 +613,6 @@ class Timer(ttk.Frame):
         notebook = ttk.Notebook(self.emoji_window)
         notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Создание вкладок по категориям
         for category, emojis in categories.items():
             frame = ttk.Frame(notebook)
             notebook.add(frame, text=category)
@@ -634,11 +628,10 @@ class Timer(ttk.Frame):
                 button.grid(row=row, column=col, padx=5, pady=5)
 
                 col += 1
-                if col > 5:  # 6 эмодзи в строке
+                if col > 5:
                     col = 0
                     row += 1
 
-        # Добавляем поле для ввода произвольного эмодзи
         custom_frame = ttk.Frame(self.emoji_window)
         custom_frame.pack(fill=tk.X, padx=10, pady=10)
 
@@ -653,7 +646,6 @@ class Timer(ttk.Frame):
             command=lambda: self.insert_emoji(custom_emoji.get()),
         ).pack(side=tk.LEFT)
 
-        # Центрирование окна и установка минимального размера
         self.emoji_window.update_idletasks()
         width = self.emoji_window.winfo_width()
         height = self.emoji_window.winfo_height()

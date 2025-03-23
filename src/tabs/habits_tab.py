@@ -50,7 +50,6 @@ class HabitsTab(ttk.Frame):
             takefocus=0,
         ).pack(side=tk.LEFT, padx=10)
 
-        # Добавляем кнопку статистики
         ttk.Button(
             title_frame,
             text="Статистика",
@@ -59,7 +58,6 @@ class HabitsTab(ttk.Frame):
             takefocus=0,
         ).pack(side=tk.LEFT, padx=10)
 
-        # Добавляем кнопку сброса всех отметок привычек
         ttk.Button(
             title_frame,
             text="Сбросить все отметки",
@@ -68,7 +66,6 @@ class HabitsTab(ttk.Frame):
             takefocus=0,
         ).pack(side=tk.LEFT, padx=10)
 
-        # Отображение количества выполненных привычек сегодня
         self.stats_label = ttk.Label(title_frame, text="", font=("Segoe UI", 9))
         self.stats_label.pack(side=tk.LEFT, padx=5)
 
@@ -112,7 +109,6 @@ class HabitsTab(ttk.Frame):
         self.bind("<Map>", lambda e: self.after(500, self.update_times_display))
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
-        # Обновляем статистику при запуске
         self.update_stats_display()
 
     def _on_mousewheel(self, event):
@@ -306,7 +302,6 @@ class HabitsTab(ttk.Frame):
         col_count = 0
 
         for time_name in self.all_times:
-            # В компактном режиме скрываем времена без включенных привычек
             if self.compact_mode.get():
                 has_enabled_habits = False
                 for habit in self.habits.get(time_name, []):
@@ -338,14 +333,12 @@ class HabitsTab(ttk.Frame):
             self.habits[time_name] = []
 
         for habit in self.habits[time_name]:
-            # В компактном режиме скрываем отключенные привычки
             if self.compact_mode.get() and not habit.get("enabled", True):
                 continue
 
             habit_frame = ttk.Frame(frame)
             habit_frame.pack(fill=tk.X, pady=5)
 
-            # Чекбокс для включения/отключения привычки - скрываем в компактном режиме
             if not self.compact_mode.get():
                 enabled_var = tk.BooleanVar(value=habit.get("enabled", True))
                 ttk.Checkbutton(
@@ -357,7 +350,6 @@ class HabitsTab(ttk.Frame):
                     takefocus=0,
                 ).pack(side=tk.LEFT, padx=5)
 
-            # Добавляем чекбоксы для отметки повторений
             repeats = habit.get("repeats", 1)
             completed_repeats = habit.get("completed_repeats", 0)
             completed = habit.get("completed", False)
@@ -365,8 +357,7 @@ class HabitsTab(ttk.Frame):
             checkboxes_frame = ttk.Frame(habit_frame)
             checkboxes_frame.pack(side=tk.LEFT, padx=3)
 
-            # Создаем чекбоксы для повторений (от 1 до 5)
-            max_visible_repeats = min(repeats, 5)  # Показываем максимум 5 чекбоксов
+            max_visible_repeats = min(repeats, 5)
 
             for i in range(max_visible_repeats):
                 is_checked = i < completed_repeats or completed
@@ -383,13 +374,11 @@ class HabitsTab(ttk.Frame):
                 )
                 checkbox.pack(side=tk.LEFT)
 
-            # Если повторений больше 5, добавляем счетчик
             if repeats > 5:
                 ttk.Label(
                     checkboxes_frame, text=f"+{repeats - 5}", font=("Segoe UI", 9)
                 ).pack(side=tk.LEFT, padx=(2, 0))
 
-            # Отключение уведомлений
             notifications_var = tk.BooleanVar(value=habit.get("notifications", True))
             notify_btn = ttk.Button(
                 habit_frame,
@@ -409,19 +398,15 @@ class HabitsTab(ttk.Frame):
                 info_frame, text=habit["name"], font=("Segoe UI", 11)
             )
 
-            # Используем серый цвет для выполненных привычек
             if habit.get("completed", False):
                 name_label.configure(foreground="gray")
             name_label.pack(anchor=tk.W)
 
-            # Отображаем дополнительную информацию
             info_text = ""
 
-            # Показываем комментарий, если есть
             if habit.get("comment"):
                 info_text += f"\"{habit['comment']}\" "
 
-            # Отображаем интервал и время только если уведомления включены
             if habit.get("notifications", True):
                 interval_text = f"Каждые {habit.get('interval', '')} мин"
                 time_text = (
@@ -443,7 +428,6 @@ class HabitsTab(ttk.Frame):
             buttons_frame.pack(side=tk.RIGHT)
 
             if not self.compact_mode.get():
-                # Кнопка комментария
                 ttk.Button(
                     buttons_frame,
                     text="💬",
@@ -452,7 +436,6 @@ class HabitsTab(ttk.Frame):
                     takefocus=0,
                 ).pack(side=tk.LEFT, padx=2)
 
-                # Кнопка редактирования
                 ttk.Button(
                     buttons_frame,
                     text="✏️",
@@ -493,50 +476,42 @@ class HabitsTab(ttk.Frame):
         max_repeats = habit.get("repeats", 1)
         completed_repeats = habit.get("completed_repeats", 0)
 
-        # Если привычка уже полностью выполнена, сбрасываем ее
         if habit.get("completed", False) and completed_repeats >= max_repeats:
             habit["completed"] = False
             habit["completed_repeats"] = 0
             habit["comment"] = ""
         else:
-            # Увеличиваем количество повторений
             habit["completed_repeats"] = completed_repeats + 1
 
-            # Если достигнуто максимальное количество повторений, отмечаем как выполненную
             if habit["completed_repeats"] >= max_repeats:
                 habit["completed"] = True
 
-                # Запрашиваем комментарий, если его еще нет
                 if not habit.get("comment"):
                     self.add_comment(habit)
             else:
                 habit["completed"] = False
 
-        # Сохраняем изменения и обновляем отображение
         self.save_habits()
         self.update_times_display()
-        self.update_stats_display()  # Обновляем статистику
+        self.update_stats_display()
 
     def reset_completion(self):
         """Сбрасывает статус выполнения привычек каждый день в полночь"""
         current_date = datetime.now().date()
 
-        # Проверяем, не изменилась ли дата с прошлого запуска
         last_reset_date = self.get_last_reset_date()
 
         if last_reset_date != current_date:
-            # Сбрасываем выполнение для всех привычек
             for time_name, habits_list in self.habits.items():
                 for habit in habits_list:
                     habit["completed"] = False
                     habit["completed_repeats"] = 0
                     habit["comment"] = ""
 
-            # Обновляем дату последнего сброса
             self.set_last_reset_date(current_date)
             self.save_habits()
             self.update_times_display()
-            self.update_stats_display()  # Обновляем статистику
+            self.update_stats_display()
 
     def get_last_reset_date(self):
         """Возвращает дату последнего сброса привычек"""
@@ -571,11 +546,11 @@ class HabitsTab(ttk.Frame):
         """Открывает диалог редактирования привычки"""
         dialog = tk.Toplevel(self)
         dialog.title("Редактировать привычку")
-        dialog.geometry("500x700")  # Увеличенный размер окна
+        dialog.geometry("500x700")
         dialog.transient(self)
         dialog.grab_set()
 
-        main_frame = ttk.Frame(dialog, padding="20 20 20 20")  # Увеличенные отступы
+        main_frame = ttk.Frame(dialog, padding="20 20 20 20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(main_frame, text="Название привычки:", font=("Segoe UI", 11)).pack(
@@ -583,12 +558,11 @@ class HabitsTab(ttk.Frame):
         )
         name_entry = ttk.Entry(main_frame, width=40, font=("Segoe UI", 11))
         name_entry.insert(0, habit["name"])
-        name_entry.pack(fill=tk.X, pady=(5, 20))  # Увеличенный отступ снизу
+        name_entry.pack(fill=tk.X, pady=(5, 20))
         self.add_copy_paste_menu(name_entry)
 
-        # Секция для настройки повторений
         repeats_frame = ttk.Frame(main_frame)
-        repeats_frame.pack(fill=tk.X, pady=(0, 20))  # Увеличенный отступ снизу
+        repeats_frame.pack(fill=tk.X, pady=(0, 20))
 
         ttk.Label(repeats_frame, text="Повторений:", font=("Segoe UI", 11)).pack(
             side=tk.LEFT, padx=(0, 10)
@@ -610,7 +584,7 @@ class HabitsTab(ttk.Frame):
             anchor=tk.W
         )
         interval_frame = ttk.Frame(main_frame)
-        interval_frame.pack(fill=tk.X, pady=(5, 20))  # Увеличенный отступ снизу
+        interval_frame.pack(fill=tk.X, pady=(5, 20))
 
         interval_entry = ttk.Spinbox(
             interval_frame, from_=1, to=999, width=8, font=("Segoe UI", 11)
@@ -627,7 +601,7 @@ class HabitsTab(ttk.Frame):
             anchor=tk.W
         )
         time_frame = ttk.Frame(main_frame)
-        time_frame.pack(fill=tk.X, pady=(5, 20))  # Увеличенный отступ снизу
+        time_frame.pack(fill=tk.X, pady=(5, 20))
 
         start_frame = ttk.Frame(time_frame)
         start_frame.pack(side=tk.LEFT)
@@ -673,9 +647,8 @@ class HabitsTab(ttk.Frame):
         end_minute.pack(side=tk.LEFT)
         self.add_copy_paste_menu(end_minute)
 
-        # Настройки уведомлений
         notifications_frame = ttk.Frame(main_frame)
-        notifications_frame.pack(fill=tk.X, pady=(5, 15))  # Увеличенный отступ снизу
+        notifications_frame.pack(fill=tk.X, pady=(5, 15))
 
         notifications_var = tk.BooleanVar(value=habit.get("notifications", True))
         ttk.Checkbutton(
@@ -683,10 +656,9 @@ class HabitsTab(ttk.Frame):
             text="Отправлять уведомления",
             variable=notifications_var,
             takefocus=0,
-            style="Orange.TCheckbutton",  # Оранжевый стиль чекбокса
+            style="Orange.TCheckbutton",
         ).pack(anchor=tk.W)
 
-        # Комментарий
         ttk.Label(
             main_frame, text="Комментарий (необязательно):", font=("Segoe UI", 11)
         ).pack(anchor=tk.W, pady=(10, 5))
@@ -696,7 +668,7 @@ class HabitsTab(ttk.Frame):
         )
         if habit.get("comment"):
             comment_text.insert("1.0", habit["comment"])
-        comment_text.pack(fill=tk.X, pady=(0, 15))  # Увеличенный отступ снизу
+        comment_text.pack(fill=tk.X, pady=(0, 15))
         self.add_copy_paste_menu(comment_text)
 
         btn_frame = ttk.Frame(main_frame)
@@ -708,7 +680,6 @@ class HabitsTab(ttk.Frame):
                 messagebox.showwarning("Ошибка", "Введите название привычки")
                 return
 
-            # Проверка на дублирование названия привычки (исключая текущую)
             for h in self.habits.get(time_name, []):
                 if h["name"] == name and h != habit:
                     messagebox.showwarning(
@@ -716,7 +687,6 @@ class HabitsTab(ttk.Frame):
                     )
                     return
 
-            # Получаем количество повторений
             try:
                 repeats = int(repeats_var.get())
                 if repeats < 1:
@@ -729,7 +699,6 @@ class HabitsTab(ttk.Frame):
 
             comment = comment_text.get("1.0", tk.END).strip()
 
-            # Обновляем данные привычки
             habit["name"] = name
             habit["interval"] = int(interval_entry.get())
             habit["start_time"] = start_time
@@ -738,22 +707,19 @@ class HabitsTab(ttk.Frame):
             habit["repeats"] = repeats
             habit["comment"] = comment
 
-            # Если текущее количество выполнений больше нового максимума, сбрасываем
             if habit.get("completed_repeats", 0) > repeats:
                 habit["completed_repeats"] = repeats
 
-            # Проверяем, не нужно ли изменить статус выполнения привычки
             if habit.get("completed_repeats", 0) >= repeats:
                 habit["completed"] = True
             else:
                 habit["completed"] = False
 
             self.update_times_display()
-            self.update_stats_display()  # Обновляем статистику
+            self.update_stats_display()
             self.save_habits()
             dialog.destroy()
 
-        # Увеличенные размеры кнопок
         ttk.Button(
             btn_frame,
             text="Отмена",
@@ -770,7 +736,6 @@ class HabitsTab(ttk.Frame):
             width=15,
         ).pack(side=tk.RIGHT)
 
-        # Центрирование диалога
         dialog.update_idletasks()
         width = dialog.winfo_width()
         height = dialog.winfo_height()
@@ -790,11 +755,11 @@ class HabitsTab(ttk.Frame):
     def add_habit_dialog(self, time_name, habit_name):
         dialog = tk.Toplevel(self)
         dialog.title("Новая привычка")
-        dialog.geometry("500x700")  # Увеличенный размер окна
+        dialog.geometry("500x700")
         dialog.transient(self)
         dialog.grab_set()
 
-        main_frame = ttk.Frame(dialog, padding="20 20 20 20")  # Увеличенные отступы
+        main_frame = ttk.Frame(dialog, padding="20 20 20 20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(main_frame, text="Название привычки:", font=("Segoe UI", 11)).pack(
@@ -802,12 +767,11 @@ class HabitsTab(ttk.Frame):
         )
         name_entry = ttk.Entry(main_frame, width=40, font=("Segoe UI", 11))
         name_entry.insert(0, habit_name)
-        name_entry.pack(fill=tk.X, pady=(5, 20))  # Увеличенный отступ снизу
+        name_entry.pack(fill=tk.X, pady=(5, 20))
         self.add_copy_paste_menu(name_entry)
 
-        # Секция для настройки повторений
         repeats_frame = ttk.Frame(main_frame)
-        repeats_frame.pack(fill=tk.X, pady=(0, 20))  # Увеличенный отступ снизу
+        repeats_frame.pack(fill=tk.X, pady=(0, 20))
 
         ttk.Label(repeats_frame, text="Повторений:", font=("Segoe UI", 11)).pack(
             side=tk.LEFT, padx=(0, 10)
@@ -829,7 +793,7 @@ class HabitsTab(ttk.Frame):
             anchor=tk.W
         )
         interval_frame = ttk.Frame(main_frame)
-        interval_frame.pack(fill=tk.X, pady=(5, 20))  # Увеличенный отступ снизу
+        interval_frame.pack(fill=tk.X, pady=(5, 20))
 
         interval_entry = ttk.Spinbox(
             interval_frame, from_=1, to=999, width=8, font=("Segoe UI", 11)
@@ -846,7 +810,7 @@ class HabitsTab(ttk.Frame):
             anchor=tk.W
         )
         time_frame = ttk.Frame(main_frame)
-        time_frame.pack(fill=tk.X, pady=(5, 20))  # Увеличенный отступ снизу
+        time_frame.pack(fill=tk.X, pady=(5, 20))
 
         start_frame = ttk.Frame(time_frame)
         start_frame.pack(side=tk.LEFT)
@@ -888,9 +852,8 @@ class HabitsTab(ttk.Frame):
         end_minute.pack(side=tk.LEFT)
         self.add_copy_paste_menu(end_minute)
 
-        # Настройки уведомлений
         notifications_frame = ttk.Frame(main_frame)
-        notifications_frame.pack(fill=tk.X, pady=(5, 15))  # Увеличенный отступ снизу
+        notifications_frame.pack(fill=tk.X, pady=(5, 15))
 
         notifications_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(
@@ -898,10 +861,9 @@ class HabitsTab(ttk.Frame):
             text="Отправлять уведомления",
             variable=notifications_var,
             takefocus=0,
-            style="Orange.TCheckbutton",  # Оранжевый стиль чекбокса
+            style="Orange.TCheckbutton",
         ).pack(anchor=tk.W)
 
-        # Начальный комментарий
         ttk.Label(
             main_frame, text="Комментарий (необязательно):", font=("Segoe UI", 11)
         ).pack(anchor=tk.W, pady=(10, 5))
@@ -909,7 +871,7 @@ class HabitsTab(ttk.Frame):
         comment_text = tk.Text(
             main_frame, height=4, width=40, wrap=tk.WORD, font=("Segoe UI", 11)
         )
-        comment_text.pack(fill=tk.X, pady=(0, 15))  # Увеличенный отступ снизу
+        comment_text.pack(fill=tk.X, pady=(0, 15))
         self.add_copy_paste_menu(comment_text)
 
         btn_frame = ttk.Frame(main_frame)
@@ -921,7 +883,6 @@ class HabitsTab(ttk.Frame):
                 messagebox.showwarning("Ошибка", "Введите название привычки")
                 return
 
-            # Проверка на дублирование названия привычки
             for habit in self.habits.get(time_name, []):
                 if habit["name"] == name:
                     messagebox.showwarning(
@@ -929,7 +890,6 @@ class HabitsTab(ttk.Frame):
                     )
                     return
 
-            # Получаем количество повторений
             try:
                 repeats = int(repeats_var.get())
                 if repeats < 1:
@@ -961,11 +921,10 @@ class HabitsTab(ttk.Frame):
 
             self.habits[time_name].append(habit)
             self.update_times_display()
-            self.update_stats_display()  # Обновляем статистику
+            self.update_stats_display()
             self.save_habits()
             dialog.destroy()
 
-        # Увеличенные размеры кнопок
         ttk.Button(
             btn_frame,
             text="Отмена",
@@ -982,7 +941,6 @@ class HabitsTab(ttk.Frame):
             width=15,
         ).pack(side=tk.RIGHT)
 
-        # Центрирование диалога
         dialog.update_idletasks()
         width = dialog.winfo_width()
         height = dialog.winfo_height()
@@ -993,11 +951,11 @@ class HabitsTab(ttk.Frame):
     def add_custom_time(self):
         dialog = tk.Toplevel(self)
         dialog.title("Добавить новое время")
-        dialog.geometry("400x200")  # Увеличенный размер окна
+        dialog.geometry("400x200")
         dialog.transient(self)
         dialog.grab_set()
 
-        main_frame = ttk.Frame(dialog, padding="20 20 20 20")  # Увеличенные отступы
+        main_frame = ttk.Frame(dialog, padding="20 20 20 20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(main_frame, text="Название времени:", font=("Segoe UI", 11)).pack(
@@ -1005,10 +963,9 @@ class HabitsTab(ttk.Frame):
         )
 
         name_entry = ttk.Entry(main_frame, width=40, font=("Segoe UI", 11))
-        name_entry.pack(fill=tk.X, pady=(10, 20))  # Увеличенные отступы
+        name_entry.pack(fill=tk.X, pady=(10, 20))
         name_entry.focus_set()
 
-        # Добавляем контекстное меню для копирования/вставки
         self.add_copy_paste_menu(name_entry)
 
         btn_frame = ttk.Frame(main_frame)
@@ -1033,7 +990,6 @@ class HabitsTab(ttk.Frame):
             self.save_habits()
             dialog.destroy()
 
-        # Увеличенные размеры кнопок
         ttk.Button(
             btn_frame,
             text="Отмена",
@@ -1046,7 +1002,6 @@ class HabitsTab(ttk.Frame):
             btn_frame, text="Сохранить", style="Accent.TButton", command=save, width=15
         ).pack(side=tk.RIGHT)
 
-        # Центрирование диалога
         dialog.update_idletasks()
         width = dialog.winfo_width()
         height = dialog.winfo_height()
@@ -1204,7 +1159,6 @@ class HabitsTab(ttk.Frame):
 
         dialog.bind("<Return>", lambda e: start_custom_timer())
 
-        # Позиционирование окна по центру основного окна
         dialog.update_idletasks()
         width = dialog.winfo_width()
         height = dialog.winfo_height()
@@ -1241,13 +1195,12 @@ class HabitsTab(ttk.Frame):
 
     def show_toast_notification(self, message, duration=3000):
         """Показывает всплывающее уведомление"""
-        # Закрыть предыдущее уведомление, если оно открыто
+
         if self.toast_notification and self.toast_notification.winfo_exists():
             self.toast_notification.destroy()
 
         root = self.winfo_toplevel()
 
-        # Создаем новое окно уведомления
         self.toast_notification = tk.Toplevel(root)
         self.toast_notification.overrideredirect(True)
         self.toast_notification.attributes("-topmost", True)
@@ -1257,7 +1210,6 @@ class HabitsTab(ttk.Frame):
 
         ttk.Label(frame, text=message, font=("Segoe UI", 10), padding=10).pack()
 
-        # Размещаем уведомление в нижней правой части основного окна
         self.toast_notification.update_idletasks()
         width = self.toast_notification.winfo_width()
         height = self.toast_notification.winfo_height()
@@ -1272,7 +1224,6 @@ class HabitsTab(ttk.Frame):
 
         self.toast_notification.geometry(f"+{x}+{y}")
 
-        # Закрываем уведомление через duration миллисекунд
         self.toast_notification.after(duration, self.toast_notification.destroy)
 
     def save_habits(self):
@@ -1291,7 +1242,6 @@ class HabitsTab(ttk.Frame):
                 if isinstance(last_reminder, datetime):
                     last_reminder = last_reminder.isoformat()
 
-                # Сохраняем все необходимые поля привычки
                 habit_data = {
                     "name": habit["name"],
                     "interval": habit["interval"],
@@ -1306,22 +1256,18 @@ class HabitsTab(ttk.Frame):
                     "last_reminder": last_reminder,
                 }
 
-                # Если есть время завершения, также сохраняем его
                 if "completed_time" in habit:
                     habit_data["completed_time"] = habit["completed_time"]
 
                 habits_data["habits"][time_name].append(habit_data)
 
         try:
-            # Проверяем, что данные можно сериализовать в JSON
             json_data = json.dumps(habits_data, ensure_ascii=False, indent=2)
 
-            # Если все в порядке, сохраняем в файл
             with open("habits.json", "w", encoding="utf-8") as f:
                 f.write(json_data)
         except Exception as e:
             print(f"Ошибка при сохранении данных о привычках: {e}")
-            # Можно здесь добавить логику для восстановления из резервной копии
 
     def load_habits(self):
         """Загружает данные о привычках из файла"""
@@ -1330,12 +1276,9 @@ class HabitsTab(ttk.Frame):
                 try:
                     data = json.load(f)
 
-                    # Проверка формата данных
                     if isinstance(data, list):
-                        # Старый формат - преобразуем в новый
                         old_habits = data
 
-                        # Разместим все старые привычки в категорию "Общие"
                         general_time = "Общие"
                         if general_time not in self.all_times:
                             self.all_times.append(general_time)
@@ -1366,10 +1309,10 @@ class HabitsTab(ttk.Frame):
                                 and habit_data["last_reminder"]
                             ):
                                 try:
-                                    habit_data["last_reminder"] = (
-                                        datetime.fromisoformat(
-                                            habit_data["last_reminder"]
-                                        )
+                                    habit_data[
+                                        "last_reminder"
+                                    ] = datetime.fromisoformat(
+                                        habit_data["last_reminder"]
                                     )
                                 except ValueError:
                                     habit_data["last_reminder"] = None
@@ -1378,7 +1321,6 @@ class HabitsTab(ttk.Frame):
 
                             self.habits[general_time].append(habit_data)
                     else:
-                        # Новый формат
                         if "times" in data:
                             self.all_times = data["times"]
                         if "custom_times" in data:
@@ -1386,7 +1328,6 @@ class HabitsTab(ttk.Frame):
                         if "time_settings" in data:
                             self.time_settings = data["time_settings"]
 
-                        # Загрузка привычек для каждого времени
                         if "habits" in data:
                             for time_name, habits_list in data["habits"].items():
                                 if time_name not in self.habits:
@@ -1398,10 +1339,10 @@ class HabitsTab(ttk.Frame):
                                         and habit_data["last_reminder"]
                                     ):
                                         try:
-                                            habit_data["last_reminder"] = (
-                                                datetime.fromisoformat(
-                                                    habit_data["last_reminder"]
-                                                )
+                                            habit_data[
+                                                "last_reminder"
+                                            ] = datetime.fromisoformat(
+                                                habit_data["last_reminder"]
                                             )
                                         except ValueError:
                                             habit_data["last_reminder"] = None
@@ -1410,7 +1351,6 @@ class HabitsTab(ttk.Frame):
 
                                     self.habits[time_name].append(habit_data)
 
-                    # Проверка, что у каждого времени есть настройки таймера
                     for time_name in self.all_times:
                         if time_name not in self.time_settings:
                             self.time_settings[time_name] = {
@@ -1421,9 +1361,6 @@ class HabitsTab(ttk.Frame):
 
                     self.update_times_display()
 
-                    # После загрузки данных проверим completed для каждой привычки
-                    # Если привычка отмечена как выполненная, проверим не нужно ли сбросить статус
-                    # (если completed_time относится к предыдущему дню)
                     current_date = datetime.now().date()
 
                     for time_name, habits_list in self.habits.items():
@@ -1457,10 +1394,8 @@ class HabitsTab(ttk.Frame):
         menu.add_command(label="Копировать", command=lambda: self.copy_text(widget))
         menu.add_command(label="Вставить", command=lambda: self.paste_text(widget))
 
-        # Привязка меню к правой кнопке мыши
         widget.bind("<Button-3>", lambda e: self.show_popup_menu(e, menu))
 
-        # Стандартные сочетания клавиш
         widget.bind("<Control-x>", lambda e: self.cut_text(widget))
         widget.bind("<Control-c>", lambda e: self.copy_text(widget))
         widget.bind("<Control-v>", lambda e: self.paste_text(widget))
@@ -1477,7 +1412,6 @@ class HabitsTab(ttk.Frame):
         try:
             widget.event_generate("<<Cut>>")
         except:
-            # Если стандартная функция не работает, делаем вручную
             self.copy_text(widget)
             try:
                 widget.delete("sel.first", "sel.last")
@@ -1489,7 +1423,6 @@ class HabitsTab(ttk.Frame):
         try:
             widget.event_generate("<<Copy>>")
         except:
-            # Если стандартная функция не работает, делаем вручную
             try:
                 selected_text = widget.selection_get()
                 self.clipboard_clear()
@@ -1502,7 +1435,6 @@ class HabitsTab(ttk.Frame):
         try:
             widget.event_generate("<<Paste>>")
         except:
-            # Если стандартная функция не работает, делаем вручную
             try:
                 text = self.clipboard_get()
                 if "sel.first" in widget.index("sel.first"):
@@ -1519,34 +1451,26 @@ class HabitsTab(ttk.Frame):
 
         self.stats_window = tk.Toplevel(self)
         self.stats_window.title("Статистика привычек")
-        self.stats_window.geometry("600x500")  # Увеличенный размер окна
+        self.stats_window.geometry("600x500")
         self.stats_window.transient(self.winfo_toplevel())
 
-        main_frame = ttk.Frame(
-            self.stats_window, padding="20 20 20 20"
-        )  # Увеличенные отступы
+        main_frame = ttk.Frame(self.stats_window, padding="20 20 20 20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(
             main_frame, text="Статистика привычек", font=("Segoe UI", 18, "bold")
-        ).pack(
-            pady=(0, 20)
-        )  # Увеличенный шрифт и отступы
+        ).pack(pady=(0, 20))
 
-        # Создаем фрейм для отображения статистики
         stats_frame = ttk.Frame(main_frame)
         stats_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Подсчитываем статистику
         total_habits = 0
         completed_habits = 0
         total_repeats = 0
         completed_repeats = 0
 
-        # Словарь для статистики по времени дня
         time_stats = {}
 
-        # Собираем статистику по всем привычкам
         for time_name, habits_list in self.habits.items():
             time_stats[time_name] = {
                 "total": 0,
@@ -1574,12 +1498,9 @@ class HabitsTab(ttk.Frame):
                         )
                         completed_repeats += habit.get("completed_repeats", 0)
 
-        # Отображаем общую статистику
         ttk.Label(
             stats_frame, text="Общая статистика:", font=("Segoe UI", 14, "bold")
-        ).pack(
-            anchor=tk.W, pady=(0, 10)
-        )  # Увеличенный шрифт и отступы
+        ).pack(anchor=tk.W, pady=(0, 10))
 
         if total_habits > 0:
             completion_percentage = int((completed_habits / total_habits) * 100)
@@ -1593,32 +1514,23 @@ class HabitsTab(ttk.Frame):
                 stats_frame,
                 text=f"Выполнено {completed_habits} из {total_habits} привычек ({completion_percentage}%)",
                 font=("Segoe UI", 12),
-            ).pack(
-                anchor=tk.W
-            )  # Увеличенный шрифт
+            ).pack(anchor=tk.W)
 
             ttk.Label(
                 stats_frame,
                 text=f"Выполнено {completed_repeats} из {total_repeats} повторений ({repeats_percentage}%)",
                 font=("Segoe UI", 12),
-            ).pack(
-                anchor=tk.W, pady=(0, 15)
-            )  # Увеличенный шрифт и отступы
+            ).pack(anchor=tk.W, pady=(0, 15))
         else:
             ttk.Label(
                 stats_frame, text="Нет активных привычек", font=("Segoe UI", 12)
-            ).pack(
-                anchor=tk.W, pady=(0, 15)
-            )  # Увеличенный шрифт и отступы
+            ).pack(anchor=tk.W, pady=(0, 15))
 
-        # Отображаем статистику по времени дня
         ttk.Label(
             stats_frame,
             text="Статистика по времени дня:",
             font=("Segoe UI", 14, "bold"),
-        ).pack(
-            anchor=tk.W, pady=(5, 10)
-        )  # Увеличенный шрифт и отступы
+        ).pack(anchor=tk.W, pady=(5, 10))
 
         for time_name in self.all_times:
             if time_name in time_stats and time_stats[time_name]["total"] > 0:
@@ -1646,11 +1558,8 @@ class HabitsTab(ttk.Frame):
                     text=f"{time_name}: {time_stats[time_name]['completed']}/{time_stats[time_name]['total']} привычек ({time_completion}%), "
                     + f"{time_stats[time_name]['completed_repeats']}/{time_stats[time_name]['total_repeats']} повторений ({time_repeats}%)",
                     font=("Segoe UI", 11),
-                ).pack(
-                    anchor=tk.W, pady=(0, 5)
-                )  # Увеличенный шрифт и отступы
+                ).pack(anchor=tk.W, pady=(0, 5))
 
-        # Добавляем кнопку закрытия с увеличенным размером
         ttk.Button(
             main_frame,
             text="Закрыть",
@@ -1659,7 +1568,6 @@ class HabitsTab(ttk.Frame):
             style="Accent.TButton",
         ).pack(pady=(20, 0))
 
-        # Центрирование окна
         self.stats_window.update_idletasks()
         width = self.stats_window.winfo_width()
         height = self.stats_window.winfo_height()
@@ -1674,7 +1582,6 @@ class HabitsTab(ttk.Frame):
         total_repeats = 0
         completed_repeats = 0
 
-        # Собираем статистику по всем привычкам
         for time_name, habits_list in self.habits.items():
             for habit in habits_list:
                 if habit.get("enabled", True):
@@ -1688,7 +1595,6 @@ class HabitsTab(ttk.Frame):
                     else:
                         completed_repeats += habit.get("completed_repeats", 0)
 
-        # Обновляем текст в label
         if total_habits > 0:
             completion_percentage = int((completed_habits / total_habits) * 100)
             repeats_percentage = (
@@ -1705,29 +1611,25 @@ class HabitsTab(ttk.Frame):
         """Открывает диалог для добавления комментария к привычке"""
         dialog = tk.Toplevel(self)
         dialog.title("Добавить комментарий")
-        dialog.geometry("500x300")  # Увеличенный размер окна
+        dialog.geometry("500x300")
         dialog.transient(self)
         dialog.grab_set()
 
-        main_frame = ttk.Frame(dialog, padding="20 20 20 20")  # Увеличенные отступы
+        main_frame = ttk.Frame(dialog, padding="20 20 20 20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(
             main_frame,
             text=f"Добавить комментарий к привычке: {habit['name']}",
             font=("Segoe UI", 11),
-        ).pack(
-            anchor=tk.W, pady=(0, 15)
-        )  # Увеличенные отступы
+        ).pack(anchor=tk.W, pady=(0, 15))
 
         comment_text = tk.Text(
             main_frame, height=6, width=45, wrap=tk.WORD, font=("Segoe UI", 11)
-        )  # Увеличенные размеры текстового поля
+        )
         if habit.get("comment"):
             comment_text.insert("1.0", habit["comment"])
-        comment_text.pack(
-            fill=tk.BOTH, expand=True, pady=(0, 15)
-        )  # Увеличенные отступы
+        comment_text.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
         self.add_copy_paste_menu(comment_text)
 
         btn_frame = ttk.Frame(main_frame)
@@ -1742,7 +1644,6 @@ class HabitsTab(ttk.Frame):
         def skip_comment():
             dialog.destroy()
 
-        # Увеличенные размеры кнопок
         ttk.Button(
             btn_frame,
             text="Пропустить",
@@ -1759,7 +1660,6 @@ class HabitsTab(ttk.Frame):
             width=15,
         ).pack(side=tk.RIGHT)
 
-        # Центрирование диалога
         dialog.update_idletasks()
         width = dialog.winfo_width()
         height = dialog.winfo_height()
@@ -1774,16 +1674,12 @@ class HabitsTab(ttk.Frame):
             return
 
         if habit.get("completed", False):
-            # Полностью выполнено (все повторения)
             button.config(style="Completed.TButton")
         elif habit.get("completed_repeats", 0) > 0:
-            # Частично выполнено (некоторые повторения)
             button.config(style="PartiallyCompleted.TButton")
         else:
-            # Не выполнено
             button.config(style="Regular.TButton")
 
-        # Обновляем текст кнопки чтобы показать прогресс повторений
         if habit.get("repeats", 1) > 1:
             button.config(
                 text=f"{habit['name']} ({habit.get('completed_repeats', 0)}/{habit.get('repeats', 1)})"
@@ -1795,7 +1691,6 @@ class HabitsTab(ttk.Frame):
         """Создает стили для элементов интерфейса"""
         style = ttk.Style()
 
-        # Создаем оранжевый стиль для чекбоксов
         style.configure(
             "Orange.TCheckbutton",
             background="#ffffff",
@@ -1804,7 +1699,6 @@ class HabitsTab(ttk.Frame):
             indicatorrelief=tk.RAISED,
         )
 
-        # Стандартная кнопка
         style.configure(
             "Regular.TButton",
             padding=5,
@@ -1813,7 +1707,6 @@ class HabitsTab(ttk.Frame):
             font=("Segoe UI", 10),
         )
 
-        # Кнопка выполненной привычки (все повторения)
         style.configure(
             "Completed.TButton",
             padding=5,
@@ -1822,7 +1715,6 @@ class HabitsTab(ttk.Frame):
             font=("Segoe UI", 10),
         )
 
-        # Кнопка частично выполненной привычки (некоторые из повторений)
         style.configure(
             "PartiallyCompleted.TButton",
             padding=5,
@@ -1831,7 +1723,6 @@ class HabitsTab(ttk.Frame):
             font=("Segoe UI", 10),
         )
 
-        # Кнопка отключенной привычки
         style.configure(
             "Disabled.TButton",
             padding=5,
@@ -1840,7 +1731,6 @@ class HabitsTab(ttk.Frame):
             font=("Segoe UI", 10),
         )
 
-        # Дополнительная кнопка (вторичная)
         style.configure(
             "Secondary.TButton",
             padding=5,
@@ -1849,7 +1739,6 @@ class HabitsTab(ttk.Frame):
             font=("Segoe UI", 10),
         )
 
-        # Акцентированная кнопка
         style.configure(
             "Accent.TButton",
             padding=5,
@@ -1865,18 +1754,14 @@ class HabitsTab(ttk.Frame):
 
         repeats = habit.get("repeats", 1)
 
-        # Если чекбокс отмечен
         if checked:
-            # Увеличиваем счетчик выполненных повторений
             current_repeats = habit.get("completed_repeats", 0)
             if index >= current_repeats:
                 habit["completed_repeats"] = index + 1
         else:
-            # Уменьшаем счетчик выполненных повторений
             if index < habit.get("completed_repeats", 0):
                 habit["completed_repeats"] = index
 
-        # Проверяем, все ли повторения выполнены
         if habit.get("completed_repeats", 0) >= repeats:
             habit["completed"] = True
             if not habit.get("comment"):
@@ -1884,7 +1769,6 @@ class HabitsTab(ttk.Frame):
         else:
             habit["completed"] = False
 
-        # Сохраняем изменения и обновляем отображение
         self.save_habits()
         self.update_times_display()
         self.update_stats_display()

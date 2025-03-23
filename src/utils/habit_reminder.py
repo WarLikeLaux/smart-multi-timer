@@ -32,7 +32,6 @@ class HabitReminder:
 
             for time_name in self.parent.habits:
                 for habit in self.parent.habits[time_name]:
-                    # Проверка, включены ли у привычки уведомления и активирована ли она
                     if (
                         not habit["enabled"]
                         or not habit.get("notifications", True)
@@ -143,7 +142,7 @@ class HabitReminder:
                     self.parent.parent, "timers_tab"
                 ):
                     timer_name = f"Привычка: {habit['name']}"
-                    # Используем интервал привычки как длительность таймера по умолчанию
+
                     self.parent.parent.timers_tab.add_timer(
                         timer_name, habit["interval"]
                     )

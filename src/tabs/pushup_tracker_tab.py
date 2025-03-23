@@ -205,13 +205,11 @@ class PushupTrackerTab(ttk.Frame):
         history_frame = ttk.LabelFrame(self.main_container, text="История", padding=10)
         history_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Создаем таблицу
         columns = ("time", "count", "actions")
         self.history_tree = ttk.Treeview(
             history_frame, columns=columns, show="headings", style="Modern.Treeview"
         )
 
-        # Настройка стилей
         style = ttk.Style()
         style.configure(
             "Modern.Treeview",

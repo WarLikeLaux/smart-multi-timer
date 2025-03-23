@@ -322,11 +322,11 @@ class TimerNotification(tk.Toplevel):
                 self.toggle_sound()
             elif event.keycode == 80:
                 self.quick_pushup()
-            elif event.keycode == 53:  # Клавиша 5
+            elif event.keycode == 53:
                 self.snooze_timer(5)
-            elif event.keycode == 49:  # Клавиша 1
+            elif event.keycode == 49:
                 self.snooze_timer(10)
-            elif event.keycode == 50:  # Клавиша 2
+            elif event.keycode == 50:
                 self.snooze_timer(15)
 
     def toggle_sound(self):
@@ -508,14 +508,11 @@ class TimerNotification(tk.Toplevel):
             self.destroy()
             return
 
-        # Остановка звуков
         self.current_timer.stop_alarm()
 
-        # Получаем ссылку на родительское окно перед уничтожением
         parent = self.parent
         temp_timer = self.current_timer
 
-        # Настраиваем новое время
         temp_timer.hours.set("0")
         temp_timer.minutes.set(str(minutes))
         temp_timer.seconds.set("0")
@@ -525,17 +522,13 @@ class TimerNotification(tk.Toplevel):
         temp_timer.remaining_time = total_seconds
         temp_timer.initial_time = total_seconds
 
-        # Закрываем уведомление сразу
         self.destroy()
 
-        # Даем системе время обработать закрытие окна
         def delayed_start():
-            # Убедимся, что все звуки остановлены еще раз
             temp_timer.stop_alarm()
-            # Запускаем таймер
+
             temp_timer.start_timer()
 
-        # Запускаем с задержкой
         parent.after(200, delayed_start)
 
     def find_timer_list(self, widget):

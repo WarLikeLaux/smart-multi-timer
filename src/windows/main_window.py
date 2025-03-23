@@ -32,7 +32,6 @@ class MainWindow(ThemedTk):
         self.create_theme_menu()
         self.is_wsl = self.check_wsl()
 
-        # Устанавливаем иконку только если не WSL и не Linux
         if platform.system() == "Windows" and not self.is_wsl:
             self.iconbitmap(default=IMAGES["TRAY_ICON"])
 
@@ -166,7 +165,6 @@ class MainWindow(ThemedTk):
         style = ttk.Style()
         style.configure("TNotebook.Tab", focuscolor="none")
 
-        # Сохраняем индекс вкладки таймеров для использования в других модулях
         self.timers_tab_index = self.notebook.index(self.timers_tab)
 
     def setup_timers_ui(self):
