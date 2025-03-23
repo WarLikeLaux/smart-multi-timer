@@ -31,16 +31,16 @@ class MainWindow(ThemedTk):
         self.selected_theme = initial_theme
         self.create_theme_menu()
         self.is_wsl = self.check_wsl()
-        
+
         # Устанавливаем иконку только если не WSL и не Linux
         if platform.system() == "Windows" and not self.is_wsl:
             self.iconbitmap(default=IMAGES["TRAY_ICON"])
-            
+
         self.setup_global_styles()
         self.title("Мульти-таймер")
         self.timers = []
         self.setup_ui()
-        
+
         if not self.is_wsl:
             self.create_tray_icon()
 

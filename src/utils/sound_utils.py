@@ -27,7 +27,7 @@ class SoundPlayer:
     def play_beep(self, frequency=1000, duration=1000):
         self.is_playing = True
         self.stop_flag = False
-        
+
         if self.system == "Windows":
             try:
                 winsound.Beep(frequency, duration)
@@ -40,14 +40,14 @@ class SoundPlayer:
                 )
             except:
                 print("\a")
-                
+
         if not self.stop_flag:
             self.is_playing = False
-                
+
     def stop(self):
         self.stop_flag = True
         self.is_playing = False
-        
+
         try:
             if mixer.get_init():
                 mixer.music.stop()
@@ -55,7 +55,7 @@ class SoundPlayer:
                 mixer.quit()
         except:
             pass
-            
+
         try:
             mixer.init()
             mixer.music.stop()

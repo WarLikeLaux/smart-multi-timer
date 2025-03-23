@@ -503,38 +503,38 @@ class TimerNotification(tk.Toplevel):
 
     def snooze_timer(self, minutes):
         self.result = "snooze"
-        
+
         if not self.current_timer:
             self.destroy()
             return
-            
+
         # Остановка звуков
         self.current_timer.stop_alarm()
-        
+
         # Получаем ссылку на родительское окно перед уничтожением
         parent = self.parent
         temp_timer = self.current_timer
-        
+
         # Настраиваем новое время
         temp_timer.hours.set("0")
         temp_timer.minutes.set(str(minutes))
         temp_timer.seconds.set("0")
         temp_timer.paused_time = 0
-        
+
         total_seconds = minutes * 60
         temp_timer.remaining_time = total_seconds
         temp_timer.initial_time = total_seconds
-        
+
         # Закрываем уведомление сразу
         self.destroy()
-        
+
         # Даем системе время обработать закрытие окна
         def delayed_start():
             # Убедимся, что все звуки остановлены еще раз
             temp_timer.stop_alarm()
             # Запускаем таймер
             temp_timer.start_timer()
-        
+
         # Запускаем с задержкой
         parent.after(200, delayed_start)
 

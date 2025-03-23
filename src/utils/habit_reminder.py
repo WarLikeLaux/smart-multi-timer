@@ -33,16 +33,24 @@ class HabitReminder:
             for time_name in self.parent.habits:
                 for habit in self.parent.habits[time_name]:
                     # Проверка, включены ли у привычки уведомления и активирована ли она
-                    if not habit["enabled"] or not habit.get("notifications", True) or habit.get("completed", False):
+                    if (
+                        not habit["enabled"]
+                        or not habit.get("notifications", True)
+                        or habit.get("completed", False)
+                    ):
                         continue
 
                     try:
-                        start_time = datetime.strptime(habit["start_time"], "%H:%M").time()
+                        start_time = datetime.strptime(
+                            habit["start_time"], "%H:%M"
+                        ).time()
 
                         if habit["end_time"] == "24:00":
                             end_time = datetime.strptime("23:59", "%H:%M").time()
                         else:
-                            end_time = datetime.strptime(habit["end_time"], "%H:%M").time()
+                            end_time = datetime.strptime(
+                                habit["end_time"], "%H:%M"
+                            ).time()
 
                         if start_time <= current_time.time() <= end_time:
                             last_reminder = habit.get("last_reminder")
@@ -53,11 +61,13 @@ class HabitReminder:
                                 self.parent.save_habits()
                             else:
                                 if isinstance(last_reminder, str):
-                                    last_reminder = datetime.fromisoformat(last_reminder)
+                                    last_reminder = datetime.fromisoformat(
+                                        last_reminder
+                                    )
 
-                                if (current_time - last_reminder).total_seconds() >= habit[
-                                    "interval"
-                                ] * 60:
+                                if (
+                                    current_time - last_reminder
+                                ).total_seconds() >= habit["interval"] * 60:
                                     self.show_notification(habit, time_name)
                                     habit["last_reminder"] = current_time
                                     self.parent.save_habits()
@@ -94,13 +104,13 @@ class HabitReminder:
             ttk.Label(
                 main_frame, text=f"Время для привычки:", font=("Segoe UI", 12)
             ).pack()
-            
+
             ttk.Label(
                 main_frame,
                 text=f"({time_name})",
                 font=("Segoe UI", 10),
             ).pack(pady=(0, 5))
-            
+
             ttk.Label(
                 main_frame,
                 text=habit["name"],
@@ -124,17 +134,23 @@ class HabitReminder:
                 )
                 self.parent.save_habits()
                 notification.destroy()
-                
+
             def start_timer():
                 if self.notification_sound:
                     self.notification_sound.stop()
-                    
-                if hasattr(self.parent, 'parent') and hasattr(self.parent.parent, 'timers_tab'):
+
+                if hasattr(self.parent, "parent") and hasattr(
+                    self.parent.parent, "timers_tab"
+                ):
                     timer_name = f"Привычка: {habit['name']}"
                     # Используем интервал привычки как длительность таймера по умолчанию
-                    self.parent.parent.timers_tab.add_timer(timer_name, habit["interval"])
-                    self.parent.parent.notebook.select(self.parent.parent.timers_tab_index)
-                
+                    self.parent.parent.timers_tab.add_timer(
+                        timer_name, habit["interval"]
+                    )
+                    self.parent.parent.notebook.select(
+                        self.parent.parent.timers_tab_index
+                    )
+
                 notification.destroy()
 
             ttk.Button(
@@ -145,10 +161,10 @@ class HabitReminder:
             ).pack(side=tk.LEFT, padx=(0, 10))
 
             ttk.Button(
-                btn_frame, 
-                text="Запустить таймер", 
-                style="Secondary.TButton", 
-                command=start_timer
+                btn_frame,
+                text="Запустить таймер",
+                style="Secondary.TButton",
+                command=start_timer,
             ).pack(side=tk.LEFT, padx=(0, 10))
 
             ttk.Button(
