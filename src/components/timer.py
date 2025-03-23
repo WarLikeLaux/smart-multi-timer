@@ -29,7 +29,6 @@ class Timer(ttk.Frame):
         self.setup_ui()
 
     def safe_update_main_window(self):
-        """Безопасное обновление элементов основного окна"""
         try:
             if self.main_window and self.main_window.winfo_exists():
                 if hasattr(self.main_window, "time_label"):
@@ -377,32 +376,7 @@ class Timer(ttk.Frame):
         self.update_display()
         self.update_presets_visibility()
 
-    def stop_timer(self):
-        self.is_running = False
-        total_seconds = (
-            int(self.hours.get() or 0) * 3600
-            + int(self.minutes.get() or 0) * 60
-            + int(self.seconds.get() or 0)
-        )
-        self.remaining_time = total_seconds
-        self.paused_time = 0
-        self.initial_time = total_seconds
-
-        self.start_button.state(["!disabled"])
-        self.start_button.config(text="▶")
-        self.hours.state(["!disabled"])
-        self.minutes.state(["!disabled"])
-        self.seconds.state(["!disabled"])
-
-        if hasattr(self, "main_window") and self.main_window:
-            self.main_window.pause_btn.configure(text="▶")
-            self.main_window.draw_progress()
-
-        self.update_display()
-        self.update_presets_visibility()
-
     def update_time_display(self):
-        """Обновляет отображение времени на основе значений в спинбоксах"""
         try:
             hours = int(self.hours.get() or 0)
             minutes = int(self.minutes.get() or 0)
@@ -413,7 +387,6 @@ class Timer(ttk.Frame):
             self.time_label.configure(text="00:00:00")
 
     def apply_preset(self, minutes):
-        """Применяет пресет времени"""
         self.hours.set("0")
         self.minutes.set(str(minutes))
         self.seconds.set("0")
@@ -421,7 +394,6 @@ class Timer(ttk.Frame):
         self.update_presets_visibility()
 
     def update_presets_visibility(self):
-        """Обновляет видимость пресетов в зависимости от установленного времени"""
         total_seconds = (
             int(self.hours.get() or 0) * 3600
             + int(self.minutes.get() or 0) * 60
@@ -443,22 +415,29 @@ class Timer(ttk.Frame):
 
     def play_alarm(self):
         def sound_thread():
-            if hasattr(self, "custom_sound") and self.custom_sound:
+            if not hasattr(self, "alarm_active"):
+                self.alarm_active = True
+                
+            if hasattr(self, "custom_sound") and self.custom_sound and self.alarm_active:
                 try:
                     mixer.init()
                     mixer.music.load(self.custom_sound)
                     mixer.music.play(-1)
                 except Exception as e:
                     print(f"Ошибка воспроизведения custom sound: {e}")
-                    self.beep_alarm()
+                    if self.alarm_active:
+                        self.beep_alarm()
             else:
-                self.beep_alarm()
+                if self.alarm_active:
+                    self.beep_alarm()
 
-        threading.Thread(target=sound_thread, daemon=True).start()
+        self.alarm_active = True
+        self.sound_thread = threading.Thread(target=sound_thread, daemon=True)
+        self.sound_thread.start()
 
     def beep_alarm(self):
         def beep_thread():
-            while self.is_running:
+            while self.is_running and getattr(self, "alarm_active", True):
                 try:
                     self.sound_player.play_beep()
                     time.sleep(0.5)
@@ -466,7 +445,24 @@ class Timer(ttk.Frame):
                     break
 
         self.is_running = True
-        threading.Thread(target=beep_thread, daemon=True).start()
+        self.alarm_active = True
+        self.beep_thread = threading.Thread(target=beep_thread, daemon=True)
+        self.beep_thread.start()
+        
+    def stop_alarm(self):
+        self.alarm_active = False
+        self.is_running = False
+        
+        try:
+            if mixer.get_init():
+                mixer.music.stop()
+                mixer.stop()
+                mixer.quit()
+        except:
+            pass
+            
+        if hasattr(self, "sound_player"):
+            self.sound_player.stop()
 
     def show_notification(self):
         try:
@@ -479,10 +475,11 @@ class Timer(ttk.Frame):
             )
 
             self.wait_window(notification)
-
-            if mixer.get_init():
-                mixer.music.stop()
-                mixer.quit()
+            
+            if hasattr(notification, "result") and notification.result == "snooze":
+                return
+                
+            self.stop_alarm()
             self.is_running = False
             self.stop_timer()
 
@@ -495,7 +492,6 @@ class Timer(ttk.Frame):
                 self.on_delete(self)
 
     def to_dict(self):
-        """Преобразует таймер в словарь для сохранения"""
         return {
             "description": self.description.get(),
             "hours": self.hours.get(),

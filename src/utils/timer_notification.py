@@ -3,6 +3,7 @@ from tkinter import ttk
 
 from PIL import Image, ImageTk
 from pygame import mixer
+import threading
 
 from utils.constants import IMAGES
 
@@ -128,7 +129,7 @@ class TimerNotification(tk.Toplevel):
 
         shortcuts_label = ttk.Label(
             shortcuts_frame,
-            text="ESC - закрыть    |    CTRL + (1-9) - выбрать таймер    |    ALT + P - отжимания    |    ALT + M - звук    |    Кликните если клавиши не работают",
+            text="ESC - закрыть    |    CTRL + (1-9) - выбрать таймер    |    ALT + P - отжимания    |    ALT + M - звук    |    ALT + 5/1/2 - отложить на 5/10/15 мин",
             font=("Segoe UI", 10),
             background="white",
             foreground="black",
@@ -169,6 +170,47 @@ class TimerNotification(tk.Toplevel):
             foreground="black",
         )
         desc_label.pack(pady=(0, 20))
+
+        snooze_frame = ttk.Frame(center_frame, style="White.TFrame")
+        snooze_frame.pack(fill=tk.X, pady=(0, 20))
+
+        ttk.Label(
+            snooze_frame,
+            text="Отложить таймер на:",
+            font=("Segoe UI", 14),
+            background="white",
+            foreground="black",
+        ).pack(pady=(0, 10))
+
+        snooze_buttons_frame = ttk.Frame(snooze_frame, style="White.TFrame")
+        snooze_buttons_frame.pack()
+
+        snooze_times = [5, 10, 15]
+        for minutes in snooze_times:
+            snooze_btn = tk.Button(
+                snooze_buttons_frame,
+                text=f"{minutes} минут",
+                command=lambda m=minutes: self.snooze_timer(m),
+                font=("Segoe UI", 12),
+                bg="#3E51B5",
+                fg="white",
+                activebackground="#5C6BC0",
+                activeforeground="white",
+                relief="flat",
+                height=2,
+                width=10,
+                cursor="hand2",
+            )
+            snooze_btn.pack(side=tk.LEFT, padx=10)
+
+            def on_snooze_enter(e, b=snooze_btn):
+                b.configure(bg="#5C6BC0")
+
+            def on_snooze_leave(e, b=snooze_btn):
+                b.configure(bg="#3E51B5")
+
+            snooze_btn.bind("<Enter>", on_snooze_enter)
+            snooze_btn.bind("<Leave>", on_snooze_leave)
 
         pushup_frame = ttk.Frame(center_frame, style="White.TFrame")
         pushup_frame.pack(fill=tk.X, pady=(0, 30))
@@ -280,6 +322,12 @@ class TimerNotification(tk.Toplevel):
                 self.toggle_sound()
             elif event.keycode == 80:
                 self.quick_pushup()
+            elif event.keycode == 53:  # Клавиша 5
+                self.snooze_timer(5)
+            elif event.keycode == 49:  # Клавиша 1
+                self.snooze_timer(10)
+            elif event.keycode == 50:  # Клавиша 2
+                self.snooze_timer(15)
 
     def toggle_sound(self):
         self.sound_enabled = not self.sound_enabled
@@ -453,8 +501,44 @@ class TimerNotification(tk.Toplevel):
         self.result = "continue"
         self.close_notification()
 
+    def snooze_timer(self, minutes):
+        self.result = "snooze"
+        
+        if not self.current_timer:
+            self.destroy()
+            return
+            
+        # Остановка звуков
+        self.current_timer.stop_alarm()
+        
+        # Получаем ссылку на родительское окно перед уничтожением
+        parent = self.parent
+        temp_timer = self.current_timer
+        
+        # Настраиваем новое время
+        temp_timer.hours.set("0")
+        temp_timer.minutes.set(str(minutes))
+        temp_timer.seconds.set("0")
+        temp_timer.paused_time = 0
+        
+        total_seconds = minutes * 60
+        temp_timer.remaining_time = total_seconds
+        temp_timer.initial_time = total_seconds
+        
+        # Закрываем уведомление сразу
+        self.destroy()
+        
+        # Даем системе время обработать закрытие окна
+        def delayed_start():
+            # Убедимся, что все звуки остановлены еще раз
+            temp_timer.stop_alarm()
+            # Запускаем таймер
+            temp_timer.start_timer()
+        
+        # Запускаем с задержкой
+        parent.after(200, delayed_start)
+
     def find_timer_list(self, widget):
-        """Ищет объект, содержащий список таймеров"""
         current = widget
         while current:
             if hasattr(current, "timers"):

@@ -1,13 +1,21 @@
 import platform
+import os
+import time
+import threading
+import pygame
+from pygame import mixer
 import subprocess
 
-from pygame import mixer
+if platform.system() == "Windows":
+    import winsound
 
 
 class SoundPlayer:
     def __init__(self):
         self.system = platform.system()
         self.init_mixer()
+        self.is_playing = False
+        self.stop_flag = False
 
     def init_mixer(self):
         if not mixer.get_init():
@@ -17,15 +25,11 @@ class SoundPlayer:
                 print(f"Ошибка инициализации mixer: {e}")
 
     def play_beep(self, frequency=1000, duration=1000):
-        """
-        Воспроизводит звуковой сигнал
-        frequency - частота (только для Windows)
-        duration - длительность в миллисекундах
-        """
+        self.is_playing = True
+        self.stop_flag = False
+        
         if self.system == "Windows":
             try:
-                import winsound
-
                 winsound.Beep(frequency, duration)
             except ImportError:
                 print("\a")
@@ -36,13 +40,33 @@ class SoundPlayer:
                 )
             except:
                 print("\a")
+                
+        if not self.stop_flag:
+            self.is_playing = False
+                
+    def stop(self):
+        self.stop_flag = True
+        self.is_playing = False
+        
+        try:
+            if mixer.get_init():
+                mixer.music.stop()
+                mixer.stop()
+                mixer.quit()
+        except:
+            pass
+            
+        try:
+            mixer.init()
+            mixer.music.stop()
+            mixer.stop()
+            mixer.quit()
+        except:
+            pass
 
     def play_notification(self):
-        """Воспроизводит звук уведомления"""
         if self.system == "Windows":
             try:
-                import winsound
-
                 winsound.MessageBeep()
             except ImportError:
                 print("\a")
@@ -55,7 +79,6 @@ class SoundPlayer:
                 print("\a")
 
     def play_custom_sound(self, sound_file):
-        """Воспроизводит пользовательский звуковой файл"""
         try:
             if mixer.get_init():
                 sound = mixer.Sound(sound_file)
