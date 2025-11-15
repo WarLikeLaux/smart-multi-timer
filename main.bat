@@ -2,6 +2,12 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
+REM Проверка и обновление из git при первом запуске
+if not defined FIRST_RUN (
+    set FIRST_RUN=1
+    call :git_update
+)
+
 :menu
 cls
 echo ========================================
@@ -58,6 +64,10 @@ echo Сборка exe файла
 echo ========================================
 echo.
 
+REM Обновление из git перед сборкой
+call :git_update
+echo.
+
 REM Проверка Python
 echo 1. Проверка зависимостей...
 python --version >nul 2>&1
@@ -101,6 +111,37 @@ echo Файл находится в: dist\
 echo.
 pause
 goto menu
+
+:git_update
+echo ========================================
+echo Проверка обновлений из Git
+echo ========================================
+echo.
+git --version >nul 2>&1
+if errorlevel 1 (
+    echo ⚠ Git не найден, пропускаем обновление
+    goto :eof
+)
+
+echo Текущая ветка:
+for /f "tokens=*" %%i in ('git branch --show-current 2^>nul') do set CURRENT_BRANCH=%%i
+if defined CURRENT_BRANCH (
+    echo    ✓ !CURRENT_BRANCH!
+) else (
+    echo    ⚠ Не удалось определить ветку
+    goto :eof
+)
+
+echo.
+echo Обновление из репозитория...
+git pull 2>&1 | findstr /V /C:"Already up to date" /C:"Уже актуально"
+if errorlevel 1 (
+    echo    ✓ Код обновлён
+) else (
+    echo    ✓ Код актуален
+)
+echo.
+goto :eof
 
 :end
 echo.
