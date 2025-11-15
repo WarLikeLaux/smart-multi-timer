@@ -276,7 +276,7 @@ class Timer(ttk.Frame):
         self.presets_frame = ttk.Frame(main_container)
         self.presets_frame.pack(fill=tk.X, pady=(10, 0))
 
-        presets = [
+        self.presets_data = [
             ("5 минут", 5),
             ("10 минут", 10),
             ("15 минут", 15),
@@ -289,9 +289,8 @@ class Timer(ttk.Frame):
             ("2 часа", 120),
         ]
 
-        row, col = 0, 0
-        max_cols = 5
-        for label, minutes in presets:
+        self.preset_buttons = []
+        for label, minutes in self.presets_data:
             btn = ttk.Button(
                 self.presets_frame,
                 text=label,
@@ -300,14 +299,10 @@ class Timer(ttk.Frame):
                 width=10,
                 takefocus=0,
             )
-            btn.grid(row=row, column=col, padx=2, pady=2, sticky="ew")
-            col += 1
-            if col >= max_cols:
-                col = 0
-                row += 1
+            self.preset_buttons.append(btn)
 
-        for i in range(max_cols):
-            self.presets_frame.columnconfigure(i, weight=1)
+        self.presets_frame.bind("<Configure>", self.reflow_preset_buttons)
+        self.reflow_preset_buttons()
 
         separator = ttk.Separator(self, orient="horizontal")
         separator.pack(fill=tk.X, pady=(10, 0))
@@ -458,6 +453,29 @@ class Timer(ttk.Frame):
     def on_time_input_focus_out(self, event):
         self.time_inputs_focused = False
         self.update_presets_visibility()
+
+    def reflow_preset_buttons(self, event=None):
+        frame_width = self.presets_frame.winfo_width()
+
+        if frame_width <= 1:
+            return
+
+        button_width = 100
+        buttons_per_row = max(1, frame_width // button_width)
+
+        for i in range(100):
+            self.presets_frame.columnconfigure(i, weight=0)
+
+        row, col = 0, 0
+        for btn in self.preset_buttons:
+            btn.grid(row=row, column=col, padx=2, pady=2, sticky="ew")
+            col += 1
+            if col >= buttons_per_row:
+                col = 0
+                row += 1
+
+        for i in range(buttons_per_row):
+            self.presets_frame.columnconfigure(i, weight=1)
 
     def choose_sound(self):
         file_path = filedialog.askopenfilename(
