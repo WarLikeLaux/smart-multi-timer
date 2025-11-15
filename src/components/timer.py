@@ -289,16 +289,25 @@ class Timer(ttk.Frame):
             ("2 часа", 120),
         ]
 
+        row, col = 0, 0
+        max_cols = 5
         for label, minutes in presets:
             btn = ttk.Button(
                 self.presets_frame,
                 text=label,
                 command=lambda m=minutes: self.apply_preset(m),
                 style="Secondary.TButton",
-                width=8,
+                width=10,
                 takefocus=0,
             )
-            btn.pack(side=tk.LEFT, padx=2)
+            btn.grid(row=row, column=col, padx=2, pady=2, sticky="ew")
+            col += 1
+            if col >= max_cols:
+                col = 0
+                row += 1
+
+        for i in range(max_cols):
+            self.presets_frame.columnconfigure(i, weight=1)
 
         separator = ttk.Separator(self, orient="horizontal")
         separator.pack(fill=tk.X, pady=(10, 0))
