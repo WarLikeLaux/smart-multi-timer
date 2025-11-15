@@ -13,6 +13,7 @@ from components.timer import Timer
 from tabs.habits_tab import HabitsTab
 from tabs.medication_tab import MedicationTab
 from tabs.pushup_tracker_tab import PushupTrackerTab
+from tabs.settings_tab import SettingsTab
 from tabs.todo_list_tab import TodoListTab
 from utils.constants import IMAGES
 
@@ -141,6 +142,9 @@ class MainWindow(ThemedTk):
         self.habits_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.habits_tab, text="Привычки")
 
+        self.settings_tab_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.settings_tab_frame, text="Настройки")
+
         self.setup_timers_ui()
 
         self.pushup_tracker = PushupTrackerTab(self.pushups_tab)
@@ -154,6 +158,9 @@ class MainWindow(ThemedTk):
 
         self.medication_tracker = MedicationTab(self.medication_tab)
         self.medication_tracker.pack(expand=True, fill=tk.BOTH)
+
+        self.settings_tab = SettingsTab(self.settings_tab_frame, self)
+        self.settings_tab.pack(expand=True, fill=tk.BOTH)
 
         style = ttk.Style()
         style.configure("TNotebook.Tab", focuscolor="none")
@@ -329,7 +336,20 @@ class MainWindow(ThemedTk):
         self.create_tray_icon()
 
     def hide_window(self):
+        """
+        Обрабатывает закрытие окна.
+
+        Проверяет настройку close_on_exit:
+        - Если True или WSL: полностью закрывает приложение
+        - Если False: сворачивает в системный трей
+        """
         if self.is_wsl:
+            self.quit_app()
+            return
+
+        close_on_exit = self.settings_tab.get_close_on_exit()
+
+        if close_on_exit:
             self.quit_app()
         else:
             self.withdraw()
