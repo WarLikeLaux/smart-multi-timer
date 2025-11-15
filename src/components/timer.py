@@ -459,8 +459,10 @@ class Timer(ttk.Frame):
         if frame_width <= 1:
             return
 
+        scrollbar_padding = 50
+        available_width = frame_width - scrollbar_padding
         button_width = 95
-        buttons_per_row = max(1, frame_width // button_width)
+        buttons_per_row = max(1, available_width // button_width)
 
         row, col = 0, 0
         for btn in self.preset_buttons:
