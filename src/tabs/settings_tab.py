@@ -44,7 +44,8 @@ class SettingsTab(ttk.Frame):
             window_section,
             text="Закрывать приложение при нажатии ✕ (вместо сворачивания в трей)",
             variable=self.close_on_exit_var,
-            command=self.on_setting_changed
+            command=self.on_setting_changed,
+            takefocus=0
         )
         close_checkbox.pack(anchor=tk.W, pady=5)
 
