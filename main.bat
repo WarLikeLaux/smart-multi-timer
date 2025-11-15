@@ -35,6 +35,10 @@ echo Запуск приложения
 echo ========================================
 echo.
 
+REM Обновление из git перед запуском
+call :git_update
+echo.
+
 REM Проверка Python
 python --version >nul 2>&1
 if errorlevel 1 (

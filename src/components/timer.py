@@ -460,7 +460,7 @@ class Timer(ttk.Frame):
         if frame_width <= 1:
             return
 
-        button_width = 100
+        button_width = 85
         buttons_per_row = max(1, frame_width // button_width)
 
         for i in range(100):
