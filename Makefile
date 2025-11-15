@@ -1,7 +1,23 @@
-.PHONY: all collect
+.PHONY: run build clean help
 
-all: collect
+help:
+	@echo "Доступные команды:"
+	@echo "  make run     - Запустить приложение"
+	@echo "  make build   - Собрать exe с помощью PyInstaller"
+	@echo "  make clean   - Очистить артефакты сборки"
 
-collect:
-	@echo "Collecting Python files..."
-	@bash collect.sh $$(find src -type f -name "*.py")
+run:
+	@echo "Запуск приложения..."
+	python src/main.py
+
+build:
+	@echo "Сборка exe с помощью PyInstaller..."
+	pyinstaller app.spec
+
+clean:
+	@echo "Очистка артефактов сборки..."
+	rm -rf build/
+	rm -rf dist/
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+	rm -f *.spec

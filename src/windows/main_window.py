@@ -13,7 +13,6 @@ from components.timer import Timer
 from tabs.habits_tab import HabitsTab
 from tabs.medication_tab import MedicationTab
 from tabs.pushup_tracker_tab import PushupTrackerTab
-from tabs.telegram_tab import TelegramTab
 from tabs.todo_list_tab import TodoListTab
 from utils.constants import IMAGES
 
@@ -142,9 +141,6 @@ class MainWindow(ThemedTk):
         self.habits_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.habits_tab, text="Привычки")
 
-        self.telegram_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.telegram_tab, text="Telegram")
-
         self.setup_timers_ui()
 
         self.pushup_tracker = PushupTrackerTab(self.pushups_tab)
@@ -155,9 +151,6 @@ class MainWindow(ThemedTk):
 
         self.todo_list = TodoListTab(self.todo_tab)
         self.todo_list.pack(expand=True, fill=tk.BOTH)
-
-        self.telegram_integration = TelegramTab(self.telegram_tab)
-        self.telegram_integration.pack(expand=True, fill=tk.BOTH)
 
         self.medication_tracker = MedicationTab(self.medication_tab)
         self.medication_tracker.pack(expand=True, fill=tk.BOTH)
