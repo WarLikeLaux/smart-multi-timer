@@ -300,7 +300,6 @@ class Timer(ttk.Frame):
             )
             self.preset_buttons.append(btn)
 
-        self.presets_frame.bind("<Configure>", self.reflow_preset_buttons)
         self.reflow_preset_buttons()
 
         separator = ttk.Separator(self, orient="horizontal")
@@ -454,35 +453,15 @@ class Timer(ttk.Frame):
         self.update_presets_visibility()
 
     def reflow_preset_buttons(self, event=None):
-        frame_width = self.presets_frame.winfo_width()
-
-        if frame_width <= 1:
-            return
-
-        if frame_width >= 900:
-            buttons_per_row = 5
-        elif frame_width >= 700:
-            buttons_per_row = 4
-        elif frame_width >= 500:
-            buttons_per_row = 3
-        elif frame_width >= 300:
-            buttons_per_row = 2
-        else:
-            buttons_per_row = 1
-
-        for i in range(100):
-            self.presets_frame.columnconfigure(i, weight=0)
-
         row, col = 0, 0
+        max_cols = 8
+
         for btn in self.preset_buttons:
-            btn.grid(row=row, column=col, padx=2, pady=2, sticky="ew")
+            btn.grid(row=row, column=col, padx=2, pady=2)
             col += 1
-            if col >= buttons_per_row:
+            if col >= max_cols:
                 col = 0
                 row += 1
-
-        for i in range(buttons_per_row):
-            self.presets_frame.columnconfigure(i, weight=1)
 
     def choose_sound(self):
         file_path = filedialog.askopenfilename(
