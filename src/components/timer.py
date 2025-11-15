@@ -27,6 +27,7 @@ class Timer(ttk.Frame):
         self.main_window = None
         self.sound_player = SoundPlayer()
         self.emoji_window = None
+        self.time_inputs_focused = False
         self.setup_ui()
 
     def safe_update_main_window(self):
@@ -186,6 +187,13 @@ class Timer(ttk.Frame):
             "<KeyRelease>",
             lambda e: (self.update_time_display(), self.update_presets_visibility()),
         )
+
+        self.hours.bind("<FocusIn>", self.on_time_input_focus_in)
+        self.hours.bind("<FocusOut>", self.on_time_input_focus_out)
+        self.minutes.bind("<FocusIn>", self.on_time_input_focus_in)
+        self.minutes.bind("<FocusOut>", self.on_time_input_focus_out)
+        self.seconds.bind("<FocusIn>", self.on_time_input_focus_in)
+        self.seconds.bind("<FocusOut>", self.on_time_input_focus_out)
 
         btn_frame = ttk.Frame(content_frame)
         btn_frame.pack(side=tk.RIGHT, padx=(15, 0))
@@ -429,10 +437,18 @@ class Timer(ttk.Frame):
             + int(self.seconds.get() or 0)
         )
 
-        if total_seconds == 0:
+        if total_seconds == 0 or self.time_inputs_focused:
             self.presets_frame.pack(fill=tk.X, pady=(10, 0))
         else:
             self.presets_frame.pack_forget()
+
+    def on_time_input_focus_in(self, event):
+        self.time_inputs_focused = True
+        self.update_presets_visibility()
+
+    def on_time_input_focus_out(self, event):
+        self.time_inputs_focused = False
+        self.update_presets_visibility()
 
     def choose_sound(self):
         file_path = filedialog.askopenfilename(
