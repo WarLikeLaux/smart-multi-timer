@@ -27,6 +27,7 @@ class Timer(ttk.Frame):
         self.main_window = None
         self.sound_player = SoundPlayer()
         self.emoji_window = None
+        self.time_inputs_focused = False
         self.setup_ui()
 
     def safe_update_main_window(self):
@@ -187,6 +188,13 @@ class Timer(ttk.Frame):
             lambda e: (self.update_time_display(), self.update_presets_visibility()),
         )
 
+        self.hours.bind("<FocusIn>", self.on_time_input_focus_in)
+        self.hours.bind("<FocusOut>", self.on_time_input_focus_out)
+        self.minutes.bind("<FocusIn>", self.on_time_input_focus_in)
+        self.minutes.bind("<FocusOut>", self.on_time_input_focus_out)
+        self.seconds.bind("<FocusIn>", self.on_time_input_focus_in)
+        self.seconds.bind("<FocusOut>", self.on_time_input_focus_out)
+
         btn_frame = ttk.Frame(content_frame)
         btn_frame.pack(side=tk.RIGHT, padx=(15, 0))
 
@@ -268,7 +276,7 @@ class Timer(ttk.Frame):
         self.presets_frame = ttk.Frame(main_container)
         self.presets_frame.pack(fill=tk.X, pady=(10, 0))
 
-        presets = [
+        self.presets_data = [
             ("5 минут", 5),
             ("10 минут", 10),
             ("15 минут", 15),
@@ -281,16 +289,19 @@ class Timer(ttk.Frame):
             ("2 часа", 120),
         ]
 
-        for label, minutes in presets:
+        self.preset_buttons = []
+        for label, minutes in self.presets_data:
             btn = ttk.Button(
                 self.presets_frame,
                 text=label,
                 command=lambda m=minutes: self.apply_preset(m),
                 style="Secondary.TButton",
-                width=8,
                 takefocus=0,
             )
-            btn.pack(side=tk.LEFT, padx=2)
+            self.preset_buttons.append(btn)
+
+        self.presets_frame.bind("<Configure>", self.reflow_preset_buttons)
+        self.reflow_preset_buttons()
 
         separator = ttk.Separator(self, orient="horizontal")
         separator.pack(fill=tk.X, pady=(10, 0))
@@ -429,10 +440,37 @@ class Timer(ttk.Frame):
             + int(self.seconds.get() or 0)
         )
 
-        if total_seconds == 0:
+        if total_seconds == 0 or self.time_inputs_focused:
             self.presets_frame.pack(fill=tk.X, pady=(10, 0))
         else:
             self.presets_frame.pack_forget()
+
+    def on_time_input_focus_in(self, event):
+        self.time_inputs_focused = True
+        self.update_presets_visibility()
+
+    def on_time_input_focus_out(self, event):
+        self.time_inputs_focused = False
+        self.update_presets_visibility()
+
+    def reflow_preset_buttons(self, event=None):
+        frame_width = self.presets_frame.winfo_width()
+
+        if frame_width <= 1:
+            return
+
+        scrollbar_padding = 175
+        available_width = frame_width - scrollbar_padding
+        button_width = 95
+        buttons_per_row = max(1, available_width // button_width)
+
+        row, col = 0, 0
+        for btn in self.preset_buttons:
+            btn.grid(row=row, column=col, padx=2, pady=2)
+            col += 1
+            if col >= buttons_per_row:
+                col = 0
+                row += 1
 
     def choose_sound(self):
         file_path = filedialog.askopenfilename(
