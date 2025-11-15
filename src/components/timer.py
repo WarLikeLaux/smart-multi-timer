@@ -300,6 +300,7 @@ class Timer(ttk.Frame):
             )
             self.preset_buttons.append(btn)
 
+        self.presets_frame.bind("<Configure>", self.reflow_preset_buttons)
         self.reflow_preset_buttons()
 
         separator = ttk.Separator(self, orient="horizontal")
@@ -453,13 +454,19 @@ class Timer(ttk.Frame):
         self.update_presets_visibility()
 
     def reflow_preset_buttons(self, event=None):
-        row, col = 0, 0
-        max_cols = 8
+        frame_width = self.presets_frame.winfo_width()
 
+        if frame_width <= 1:
+            return
+
+        button_width = 95
+        buttons_per_row = max(1, frame_width // button_width)
+
+        row, col = 0, 0
         for btn in self.preset_buttons:
             btn.grid(row=row, column=col, padx=2, pady=2)
             col += 1
-            if col >= max_cols:
+            if col >= buttons_per_row:
                 col = 0
                 row += 1
 
