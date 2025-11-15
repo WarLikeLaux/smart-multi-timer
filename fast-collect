@@ -1,1 +1,0 @@
-bash collect.sh $(find src -type f -name "*.py")
