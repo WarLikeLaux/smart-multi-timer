@@ -1,15 +1,16 @@
-.PHONY: help venv install run clean
+.PHONY: help venv install run dev clean
 
 help:
 	@echo "Доступные команды:"
 	@echo ""
 	@echo "  make venv    - Создать виртуальное окружение"
 	@echo "  make install - Установить зависимости из src/requirements.txt"
-	@echo "  make run     - Запустить приложение"
+	@echo "  make run     - Запустить приложение (требует активированного venv)"
+	@echo "  make dev     - Создать venv, установить зависимости и запустить"
 	@echo "  make clean   - Очистить артефакты сборки"
 	@echo ""
 	@echo "Быстрый старт:"
-	@echo "  make venv && source venv/bin/activate && make install && make run"
+	@echo "  make dev     # Всё включено: venv, install, run"
 
 venv:
 	@echo "Создание виртуального окружения..."
@@ -24,6 +25,14 @@ install:
 run:
 	@echo "Запуск приложения..."
 	python src/main.py
+
+dev:
+	@echo "Быстрый старт: venv + install + run..."
+	@bash -c 'set -e; \
+	if [ ! -d "venv" ]; then python -m venv venv; fi; \
+	source venv/bin/activate; \
+	pip install -r src/requirements.txt; \
+	python src/main.py'
 
 clean:
 	@echo "Очистка артефактов сборки..."
