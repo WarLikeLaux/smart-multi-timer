@@ -33,6 +33,5 @@
 - **UTF-8 КОДИРОВКА ВЕЗДЕ** — обязательно `encoding="utf-8"` в file operations
 
 ### Быстрые ссылки
-- Полная архитектура: `@AI_README.md`
-- Детальная политика: `@docs/ai/contract.md`
-- User-facing docs: `@README.md`
+- Политика разработки: `@docs/ai/contract.md`
+- Документация для пользователей: `@README.md`
