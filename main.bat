@@ -10,12 +10,6 @@ shift
 
 setlocal enabledelayedexpansion
 
-REM Проверка и обновление из git при первом запуске
-if not defined FIRST_RUN (
-    set FIRST_RUN=1
-    call :git_update
-)
-
 :menu
 cls
 echo ========================================

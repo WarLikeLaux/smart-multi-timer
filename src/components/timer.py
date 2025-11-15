@@ -296,7 +296,6 @@ class Timer(ttk.Frame):
                 text=label,
                 command=lambda m=minutes: self.apply_preset(m),
                 style="Secondary.TButton",
-                width=10,
                 takefocus=0,
             )
             self.preset_buttons.append(btn)
@@ -460,8 +459,16 @@ class Timer(ttk.Frame):
         if frame_width <= 1:
             return
 
-        button_width = 85
-        buttons_per_row = max(1, frame_width // button_width)
+        if frame_width >= 900:
+            buttons_per_row = 5
+        elif frame_width >= 700:
+            buttons_per_row = 4
+        elif frame_width >= 500:
+            buttons_per_row = 3
+        elif frame_width >= 300:
+            buttons_per_row = 2
+        else:
+            buttons_per_row = 1
 
         for i in range(100):
             self.presets_frame.columnconfigure(i, weight=0)
