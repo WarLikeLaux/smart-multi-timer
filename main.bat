@@ -1,5 +1,13 @@
 @echo off
 chcp 65001 >nul
+
+REM Отключение запроса "Terminate batch job (Y/N)?" при Ctrl+C
+if not "%1"=="NESTED" (
+    cmd /c "%~f0" NESTED %*
+    exit /b
+)
+shift
+
 setlocal enabledelayedexpansion
 
 REM Проверка и обновление из git при первом запуске
