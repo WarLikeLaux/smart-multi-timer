@@ -1,18 +1,38 @@
-.PHONY: run build clean help
+.PHONY: help venv install run dev clean
 
 help:
 	@echo "Доступные команды:"
-	@echo "  make run     - Запустить приложение"
-	@echo "  make build   - Собрать exe с помощью PyInstaller"
+	@echo ""
+	@echo "  make venv    - Создать виртуальное окружение"
+	@echo "  make install - Установить зависимости из src/requirements.txt"
+	@echo "  make run     - Запустить приложение (требует активированного venv)"
+	@echo "  make dev     - Создать venv, установить зависимости и запустить"
 	@echo "  make clean   - Очистить артефакты сборки"
+	@echo ""
+	@echo "Быстрый старт:"
+	@echo "  make dev     # Всё включено: venv, install, run"
+
+venv:
+	@echo "Создание виртуального окружения..."
+	python -m venv venv
+	@echo "✓ Виртуальное окружение создано"
+	@echo "Для активации: source venv/bin/activate"
+
+install:
+	@echo "Установка зависимостей из src/requirements.txt..."
+	pip install -r src/requirements.txt
 
 run:
 	@echo "Запуск приложения..."
 	python src/main.py
 
-build:
-	@echo "Сборка exe с помощью PyInstaller..."
-	pyinstaller app.spec
+dev:
+	@echo "Быстрый старт: venv + install + run..."
+	@bash -c 'set -e; \
+	if [ ! -d "venv" ]; then python -m venv venv; fi; \
+	source venv/bin/activate; \
+	pip install -r src/requirements.txt; \
+	python src/main.py'
 
 clean:
 	@echo "Очистка артефактов сборки..."
