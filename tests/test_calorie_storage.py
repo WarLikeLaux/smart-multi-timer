@@ -14,8 +14,6 @@ from typing import Generator
 
 import pytest
 
-
-# Импортируем CalorieStorage, добавив src в путь
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 

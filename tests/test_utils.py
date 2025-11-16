@@ -5,7 +5,6 @@ import sys
 
 import pytest
 
-# Добавляем src в путь
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from utils.resource_path import get_resource_path
