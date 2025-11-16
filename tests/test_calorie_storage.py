@@ -1,16 +1,16 @@
 """
-Тесты для модуля CalorieStorage
+Тесты CalorieStorage
 
-Проверяет функциональность хранилища калорий:
-- Управление базой продуктов (добавление, обновление, удаление)
-- Расчёт калорий и макронутриентов
-- Персистентность данных
+Особенности:
+- Использует временные директории через os.chdir для изоляции JSON файлов
+- Проверяет edge cases: carbs=0 возвращает None (особенность реализации)
 """
 
 import json
 import os
 import tempfile
 from pathlib import Path
+from typing import Generator
 
 import pytest
 
@@ -23,38 +23,26 @@ from tabs.calorie_storage import CalorieStorage
 
 
 class TestCalorieStorage:
-    """Тесты для класса CalorieStorage"""
 
     @pytest.fixture
-    def temp_dir(self):
-        """Создает временную директорию для тестов"""
+    def temp_dir(self) -> Generator[str, None, None]:
         temp_dir = tempfile.mkdtemp()
         yield temp_dir
-        # Очистка после теста
         import shutil
         shutil.rmtree(temp_dir, ignore_errors=True)
 
     @pytest.fixture
-    def storage(self, temp_dir, monkeypatch):
-        """Создает CalorieStorage с временным файлом"""
-        # Меняем текущую директорию на временную
+    def storage(self, temp_dir: str, monkeypatch) -> Generator[CalorieStorage, None, None]:
         original_dir = os.getcwd()
         os.chdir(temp_dir)
-
-        # Создаём storage
         storage = CalorieStorage()
-
         yield storage
-
-        # Возвращаем исходную директорию
         os.chdir(original_dir)
 
-    def test_init_creates_empty_storage(self, storage):
-        """Тест: инициализация создаёт пустое хранилище"""
+    def test_init_creates_empty_storage(self, storage: CalorieStorage) -> None:
         assert storage.get_all_products() == {}
 
-    def test_add_product_to_db(self, storage):
-        """Тест: добавление продукта в базу"""
+    def test_add_product_to_db(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db(
             name="Яблоко",
             calories=52,
@@ -68,8 +56,7 @@ class TestCalorieStorage:
         assert products["Яблоко"]["calories"] == 52
         assert products["Яблоко"]["carbs"] == 14
 
-    def test_add_product_with_serving_size(self, storage):
-        """Тест: добавление продукта с размером порции"""
+    def test_add_product_with_serving_size(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db(
             name="Рис",
             calories=130,
@@ -79,21 +66,18 @@ class TestCalorieStorage:
         products = storage.get_all_products()
         assert products["Рис"]["serving_size"] == 100
 
-    def test_add_product_calculates_calories_per_100g(self, storage):
-        """Тест: автоматический расчёт калорий на 100г"""
+    def test_add_product_calculates_calories_per_100g(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db(
             name="Хлеб",
-            calories=0,  # Не указано
+            calories=0,
             calories_per_serving=250,
             serving_size=100
         )
 
         products = storage.get_all_products()
-        # (250 / 100) * 100 = 250
         assert products["Хлеб"]["calories"] == 250
 
-    def test_update_product_in_db(self, storage):
-        """Тест: обновление существующего продукта"""
+    def test_update_product_in_db(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Молоко", calories=60)
         storage.update_product_in_db(
             old_name="Молоко",
@@ -106,24 +90,21 @@ class TestCalorieStorage:
         assert "Молоко 3.2%" in products
         assert products["Молоко 3.2%"]["calories"] == 64
 
-    def test_remove_product_from_db(self, storage):
-        """Тест: удаление продукта из базы"""
+    def test_remove_product_from_db(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Сыр", calories=360)
         storage.remove_product_from_db("Сыр")
 
         products = storage.get_all_products()
         assert "Сыр" not in products
 
-    def test_get_all_products_returns_dict(self, storage):
-        """Тест: get_all_products возвращает словарь продуктов"""
+    def test_get_all_products_returns_dict(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Тест", calories=100)
 
         products = storage.get_all_products()
         assert "Тест" in products
         assert products["Тест"]["calories"] == 100
 
-    def test_add_meal_entry(self, storage):
-        """Тест: добавление записи приёма пищи"""
+    def test_add_meal_entry(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Овсянка", calories=88)
         storage.add_meal_entry(
             date="2025-01-15",
@@ -138,23 +119,21 @@ class TestCalorieStorage:
         assert len(day_data["breakfast"]) == 1
         assert day_data["breakfast"][0]["product"] == "Овсянка"
 
-    def test_calculate_meal_total_calories_grams(self, storage):
-        """Тест: расчёт калорий приёма пищи (в граммах)"""
+    def test_calculate_meal_total_calories_grams(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Гречка", calories=123)
         storage.add_meal_entry(
             date="2025-01-15",
             meal_type="lunch",
             product_name="Гречка",
-            amount=200,  # 200 грамм
+            amount=200,
             is_grams=True
         )
 
         total = storage.get_meal_total_calories("2025-01-15", "lunch")
-        # (123 / 100) * 200 = 246
         assert total == 246
 
-    def test_calculate_meal_total_calories_servings(self, storage):
-        """Тест: расчёт калорий приёма пищи (в порциях по 100г)"""
+    def test_calculate_meal_total_calories_servings(self, storage: CalorieStorage) -> None:
+        """is_grams=False означает множитель порций"""
         storage.add_product_to_db(
             "Йогурт",
             calories=60,
@@ -164,16 +143,14 @@ class TestCalorieStorage:
             date="2025-01-15",
             meal_type="snack",
             product_name="Йогурт",
-            amount=2,  # 2 порции по 100г (т.к. is_grams=False означает множитель)
+            amount=2,
             is_grams=False
         )
 
         total = storage.get_meal_total_calories("2025-01-15", "snack")
-        # При is_grams=False: calories * amount = 60 * 2 = 120
         assert total == 120
 
-    def test_get_day_total_calories(self, storage):
-        """Тест: расчёт общих калорий за день"""
+    def test_get_day_total_calories(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Хлеб", calories=250)
         storage.add_product_to_db("Масло", calories=748)
 
@@ -182,11 +159,10 @@ class TestCalorieStorage:
         storage.add_meal_entry("2025-01-15", "lunch", "Хлеб", 50, True)
 
         total = storage.get_day_total_calories("2025-01-15")
-        # 250 + (748/100)*10 + (250/100)*50 = 250 + 74.8 + 125 = 449.8 ≈ 449
         assert total == 449
 
-    def test_get_meal_total_macros(self, storage):
-        """Тест: расчёт БЖУ для приёма пищи"""
+    def test_get_meal_total_macros(self, storage: CalorieStorage) -> None:
+        """carbs=0 возвращает None - особенность _update_entry_nutrients"""
         storage.add_product_to_db(
             "Курица",
             calories=165,
@@ -203,15 +179,11 @@ class TestCalorieStorage:
         )
 
         macros = storage.get_meal_total_macros("2025-01-15", "dinner")
-        # (31 / 100) * 150 = 46.5 ≈ 46
         assert macros["protein"] == 46
-        # (4 / 100) * 150 = 6
         assert macros["fat"] == 6
-        # Когда carbs=0, _update_entry_nutrients возвращает None (особенность реализации)
         assert macros["carbs"] is None
 
-    def test_get_day_total_macros(self, storage):
-        """Тест: расчёт общего БЖУ за день"""
+    def test_get_day_total_macros(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Рис", calories=130, protein=3, fat=1, carbs=28)
         storage.add_product_to_db("Курица", calories=165, protein=31, fat=4, carbs=0)
 
@@ -219,13 +191,11 @@ class TestCalorieStorage:
         storage.add_meal_entry("2025-01-15", "lunch", "Курица", 100, True)
 
         macros = storage.get_day_total_macros("2025-01-15")
-        # Рис: Б3 Ж1 У28 + Курица: Б31 Ж4 У0
         assert macros["protein"] == 34
         assert macros["fat"] == 5
         assert macros["carbs"] == 28
 
-    def test_remove_meal_entry(self, storage):
-        """Тест: удаление записи приёма пищи"""
+    def test_remove_meal_entry(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Тест", calories=100)
         storage.add_meal_entry("2025-01-15", "breakfast", "Тест", 100, True)
         storage.add_meal_entry("2025-01-15", "breakfast", "Тест", 50, True)
@@ -236,8 +206,7 @@ class TestCalorieStorage:
         assert len(day_data["breakfast"]) == 1
         assert day_data["breakfast"][0]["amount"] == 50
 
-    def test_update_meal_entry(self, storage):
-        """Тест: обновление записи приёма пищи"""
+    def test_update_meal_entry(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("Банан", calories=89)
         storage.add_meal_entry("2025-01-15", "snack", "Банан", 100, True)
 
@@ -253,8 +222,7 @@ class TestCalorieStorage:
         day_data = storage.get_day_data("2025-01-15")
         assert day_data["snack"][0]["amount"] == 150
 
-    def test_remove_product_deletes_from_all_meals(self, storage):
-        """Тест: удаление продукта удаляет его из всех приёмов пищи"""
+    def test_remove_product_deletes_from_all_meals(self, storage: CalorieStorage) -> None:
         storage.add_product_to_db("УдалитьЭто", calories=100)
         storage.add_meal_entry("2025-01-15", "breakfast", "УдалитьЭто", 100, True)
         storage.add_meal_entry("2025-01-16", "lunch", "УдалитьЭто", 50, True)
@@ -272,8 +240,7 @@ class TestCalorieStorage:
         ("2025-01-15", "dinner"),
         ("2025-01-15", "snack"),
     ])
-    def test_supports_all_meal_types(self, storage, date, meal_type):
-        """Тест: поддержка всех типов приёмов пищи"""
+    def test_supports_all_meal_types(self, storage: CalorieStorage, date: str, meal_type: str) -> None:
         storage.add_product_to_db("Тест", calories=100)
         storage.add_meal_entry(date, meal_type, "Тест", 100, True)
 
@@ -281,18 +248,16 @@ class TestCalorieStorage:
         assert meal_type in day_data
         assert len(day_data[meal_type]) == 1
 
-    def test_get_day_data_returns_empty_for_nonexistent_date(self, storage):
-        """Тест: несуществующая дата возвращает структуру с пустыми списками"""
+    def test_get_day_data_returns_empty_for_nonexistent_date(self, storage: CalorieStorage) -> None:
         day_data = storage.get_day_data("2099-12-31")
         assert day_data == {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
 
-    def test_get_meal_total_calories_returns_zero_for_empty_meal(self, storage):
-        """Тест: пустой приём пищи возвращает 0 калорий"""
+    def test_get_meal_total_calories_returns_zero_for_empty_meal(self, storage: CalorieStorage) -> None:
         total = storage.get_meal_total_calories("2025-01-15", "breakfast")
         assert total == 0
 
-    def test_macros_with_none_values(self, storage):
-        """Тест: продукт с незаполненными БЖУ возвращает None для макросов"""
+    def test_macros_with_none_values(self, storage: CalorieStorage) -> None:
+        """Продукт с незаполненными БЖУ - None для макросов"""
         storage.add_product_to_db(
             "ПростойПродукт",
             calories=100,
@@ -303,35 +268,29 @@ class TestCalorieStorage:
         storage.add_meal_entry("2025-01-15", "lunch", "ПростойПродукт", 100, True)
 
         macros = storage.get_meal_total_macros("2025-01-15", "lunch")
-        # Если нет данных, _calculate_macros должен вернуть None для каждого макроса
         assert macros["protein"] is None
         assert macros["fat"] is None
         assert macros["carbs"] is None
 
 
 class TestCalorieStoragePersistence:
-    """Тесты персистентности CalorieStorage"""
 
     @pytest.fixture
-    def temp_dir(self):
-        """Создает временную директорию для тестов"""
+    def temp_dir(self) -> Generator[str, None, None]:
         temp_dir = tempfile.mkdtemp()
         yield temp_dir
         import shutil
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def test_save_and_load_products(self, temp_dir):
-        """Тест: сохранение и загрузка базы продуктов"""
+    def test_save_and_load_products(self, temp_dir: str) -> None:
         original_dir = os.getcwd()
         os.chdir(temp_dir)
 
         try:
-            # Создаём первое хранилище и добавляем продукт
             storage1 = CalorieStorage()
             storage1.add_product_to_db("Яблоко", calories=52, protein=0, fat=0, carbs=14)
             storage1.save()
 
-            # Создаём второе хранилище из того же файла
             storage2 = CalorieStorage()
             products = storage2.get_all_products()
 
@@ -341,8 +300,7 @@ class TestCalorieStoragePersistence:
         finally:
             os.chdir(original_dir)
 
-    def test_save_and_load_meal_entries(self, temp_dir):
-        """Тест: сохранение и загрузка записей приёмов пищи"""
+    def test_save_and_load_meal_entries(self, temp_dir: str) -> None:
         original_dir = os.getcwd()
         os.chdir(temp_dir)
 
