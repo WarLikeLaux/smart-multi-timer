@@ -83,10 +83,22 @@ class CalorieStorage:
         self._recalculate_entries_for_product(old_name, name)
 
     def remove_product_from_db(self, name: str) -> None:
-        """Удаляет продукт из базы"""
+        """Удаляет продукт из базы и всех приемов пищи"""
         if name in self._products_db:
             del self._products_db[name]
+            self._remove_product_from_all_meals(name)
             self._modified = True
+
+    def _remove_product_from_all_meals(self, product_name: str) -> None:
+        """Удаляет все записи с продуктом из всех дней и приемов пищи"""
+        for date in self._daily_entries:
+            for meal_type in self._daily_entries[date]:
+                self._daily_entries[date][meal_type] = [
+                    entry
+                    for entry in self._daily_entries[date][meal_type]
+                    if entry.get("product") != product_name
+                ]
+        self._modified = True
 
     def _recalculate_entries_for_product(
         self, old_name: str, new_name: str
@@ -557,6 +569,32 @@ class CalorieTrackerTab(ttk.Frame):
             takefocus=0,
         ).pack(side=tk.LEFT, padx=2)
 
+        ttk.Button(
+            controls_frame,
+            text="Импорт CSV",
+            command=self._show_csv_import_dialog,
+            takefocus=0,
+        ).pack(side=tk.LEFT, padx=2)
+
+        search_frame = ttk.Frame(products_frame)
+        search_frame.pack(fill=tk.X, pady=(5, 5))
+
+        ttk.Label(search_frame, text="Поиск:", font=("Arial", 10)).pack(side=tk.LEFT, padx=(0, 5))
+
+        self.product_search_var = tk.StringVar()
+        self.product_search_var.trace("w", lambda *args: self._filter_products())
+
+        search_entry = ttk.Entry(search_frame, textvariable=self.product_search_var, width=40)
+        search_entry.pack(side=tk.LEFT, padx=(0, 5))
+
+        ttk.Button(
+            search_frame,
+            text="Очистить",
+            command=lambda: self.product_search_var.set(""),
+            width=10,
+            takefocus=0,
+        ).pack(side=tk.LEFT)
+
         tree_frame = ttk.Frame(products_frame)
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -578,6 +616,8 @@ class CalorieTrackerTab(ttk.Frame):
         self.products_tree.column("fat", width=50, anchor="center")
         self.products_tree.column("carbs", width=50, anchor="center")
         self.products_tree.column("serving", width=80, anchor="center")
+
+        self.products_tree.tag_configure("selected", background="#0078D7", foreground="white")
 
         scrollbar = ttk.Scrollbar(
             tree_frame, orient="vertical", command=self.products_tree.yview
@@ -744,22 +784,15 @@ class CalorieTrackerTab(ttk.Frame):
         """Улучшенный диалог добавления продукта к приему пищи"""
         products = self.storage.get_all_products()
 
-        if not products:
-            messagebox.showinfo(
-                "База продуктов пуста",
-                "Сначала добавьте продукты в базу в нижней части экрана",
-            )
-            return
-
         dialog = tk.Toplevel(self)
         dialog.title("Редактировать запись" if edit_mode else "Добавить продукт")
-        dialog.geometry("650x450")
+        dialog.geometry("750x550")
 
         screen_width = dialog.winfo_screenwidth()
         screen_height = dialog.winfo_screenheight()
-        x = (screen_width - 650) // 2
-        y = (screen_height - 450) // 2
-        dialog.geometry(f"650x450+{x}+{y}")
+        x = (screen_width - 750) // 2
+        y = (screen_height - 550) // 2
+        dialog.geometry(f"750x550+{x}+{y}")
 
         dialog.transient(self)
         dialog.grab_set()
@@ -774,32 +807,77 @@ class CalorieTrackerTab(ttk.Frame):
             if edit_index < len(entries):
                 edit_data = entries[edit_index]
 
-        ttk.Label(content_frame, text="Выберите продукт:", font=("Arial", 11, "bold")).grid(
-            row=0, column=0, sticky=tk.W, pady=(0, 10), columnspan=2
+        product_header = ttk.Frame(content_frame)
+        product_header.grid(row=0, column=0, columnspan=2, sticky=tk.W+tk.E, pady=(0, 10))
+
+        ttk.Label(product_header, text="Выберите продукт:", font=("Arial", 11, "bold")).pack(
+            side=tk.LEFT
         )
 
-        product_var = tk.StringVar()
-        product_combo = ttk.Combobox(
-            content_frame,
-            textvariable=product_var,
-            values=sorted(products.keys()),
-            state="readonly",
-            width=50,
+        ttk.Button(
+            product_header,
+            text="+ Создать новый",
+            command=lambda: self._create_product_from_dialog(dialog, meal_type, edit_mode, edit_index),
+            takefocus=0,
+        ).pack(side=tk.RIGHT)
+
+        search_frame = ttk.Frame(content_frame)
+        search_frame.grid(row=1, column=0, columnspan=2, sticky=tk.W+tk.E, pady=(0, 5))
+
+        ttk.Label(search_frame, text="Поиск:", font=("Arial", 9)).pack(side=tk.LEFT, padx=(0, 5))
+
+        product_search = tk.StringVar()
+        search_entry = ttk.Entry(search_frame, textvariable=product_search, width=40, font=("Arial", 10))
+        search_entry.pack(side=tk.LEFT, padx=(0, 5))
+
+        listbox_frame = ttk.Frame(content_frame)
+        listbox_frame.grid(row=2, column=0, columnspan=2, sticky=tk.W+tk.E+tk.N+tk.S, pady=(0, 5))
+        content_frame.grid_rowconfigure(2, weight=1)
+
+        listbox_scroll = ttk.Scrollbar(listbox_frame, orient="vertical")
+        product_listbox = tk.Listbox(
+            listbox_frame,
+            height=8,
             font=("Arial", 10),
+            yscrollcommand=listbox_scroll.set,
         )
-        product_combo.grid(row=1, column=0, pady=5, columnspan=2, sticky=tk.W)
+        listbox_scroll.config(command=product_listbox.yview)
+
+        product_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        listbox_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        all_products = sorted(products.keys())
+        for product in all_products:
+            product_listbox.insert(tk.END, product)
 
         if edit_mode and edit_data:
-            product_combo.set(edit_data.get("product", ""))
-        elif products:
-            product_combo.current(0)
+            product_name = edit_data.get("product", "")
+            if product_name in all_products:
+                idx = all_products.index(product_name)
+                product_listbox.selection_set(idx)
+                product_listbox.see(idx)
+        elif all_products:
+            product_listbox.selection_set(0)
+
+        def filter_products(*args):
+            search_text = product_search.get().lower()
+            product_listbox.delete(0, tk.END)
+
+            filtered = [p for p in all_products if search_text in p.lower()]
+            for product in filtered:
+                product_listbox.insert(tk.END, product)
+
+            if filtered:
+                product_listbox.selection_set(0)
+
+        product_search.trace("w", filter_products)
 
         ttk.Separator(content_frame, orient="horizontal").grid(
-            row=2, column=0, columnspan=2, sticky="ew", pady=15
+            row=3, column=0, columnspan=2, sticky="ew", pady=15
         )
 
         ttk.Label(content_frame, text="Количество:", font=("Arial", 11, "bold")).grid(
-            row=3, column=0, sticky=tk.W, pady=(0, 10), columnspan=2
+            row=4, column=0, sticky=tk.W, pady=(0, 10), columnspan=2
         )
 
         mode_var = tk.StringVar(value="grams")
@@ -808,14 +886,14 @@ class CalorieTrackerTab(ttk.Frame):
 
         ttk.Radiobutton(
             content_frame, text="Граммы", variable=mode_var, value="grams"
-        ).grid(row=4, column=0, sticky=tk.W)
+        ).grid(row=5, column=0, sticky=tk.W)
 
         ttk.Radiobutton(
             content_frame, text="Порции", variable=mode_var, value="portions"
-        ).grid(row=4, column=1, sticky=tk.W)
+        ).grid(row=5, column=1, sticky=tk.W)
 
         amount_frame = ttk.Frame(content_frame)
-        amount_frame.grid(row=5, column=0, columnspan=2, pady=10, sticky=tk.W)
+        amount_frame.grid(row=6, column=0, columnspan=2, pady=10, sticky=tk.W)
 
         amount_var = tk.StringVar(value="100")
         if edit_mode and edit_data:
@@ -837,11 +915,11 @@ class CalorieTrackerTab(ttk.Frame):
         update_unit_label()
 
         ttk.Label(content_frame, text="Быстрый выбор:", font=("Arial", 10)).grid(
-            row=6, column=0, sticky=tk.W, pady=(10, 5), columnspan=2
+            row=7, column=0, sticky=tk.W, pady=(10, 5), columnspan=2
         )
 
         quick_frame = ttk.Frame(content_frame)
-        quick_frame.grid(row=7, column=0, columnspan=2, sticky=tk.W)
+        quick_frame.grid(row=8, column=0, columnspan=2, sticky=tk.W)
 
         quick_values_grams = [30, 50, 100, 150, 200, 250, 300, 500]
         quick_values_portions = [0.5, 1, 1.5, 2, 2.5, 3]
@@ -871,7 +949,12 @@ class CalorieTrackerTab(ttk.Frame):
         update_quick_buttons()
 
         def add_or_update_product():
-            product_name = product_var.get()
+            selection = product_listbox.curselection()
+            if not selection:
+                messagebox.showwarning("Ошибка", "Выберите продукт из списка")
+                return
+
+            product_name = product_listbox.get(selection[0])
             amount_str = amount_var.get().strip()
 
             if not product_name:
@@ -905,7 +988,7 @@ class CalorieTrackerTab(ttk.Frame):
                 )
 
         buttons_frame = ttk.Frame(content_frame)
-        buttons_frame.grid(row=8, column=0, columnspan=2, pady=(20, 0))
+        buttons_frame.grid(row=9, column=0, columnspan=2, pady=(20, 0))
 
         ttk.Button(
             buttons_frame,
@@ -943,11 +1026,12 @@ class CalorieTrackerTab(ttk.Frame):
         product_name = self.products_tree.item(item)["values"][0]
 
         if messagebox.askyesno(
-            "Подтверждение", f'Удалить продукт "{product_name}" из базы?'
+            "Подтверждение",
+            f'Удалить продукт "{product_name}" из базы?\nОн будет удален из всех приемов пищи.',
         ):
             self.storage.remove_product_from_db(product_name)
             self.storage.save()
-            self._update_products_display()
+            self._update_all_displays()
 
     def _handle_meal_click(self, event, meal_type: str, tree: ttk.Treeview):
         """Обрабатывает клики по записям приемов пищи"""
@@ -1100,14 +1184,18 @@ class CalorieTrackerTab(ttk.Frame):
         else:
             macros_label.config(text="")
 
-    def _update_products_display(self):
-        """Обновляет отображение базы продуктов"""
+    def _update_products_display(self, filter_text: str = ""):
+        """Обновляет отображение базы продуктов с учетом фильтра"""
         for item in self.products_tree.get_children():
             self.products_tree.delete(item)
 
         products = self.storage.get_all_products()
+        filter_lower = filter_text.lower()
 
         for name, data in sorted(products.items()):
+            if filter_lower and filter_lower not in name.lower():
+                continue
+
             protein = data.get("protein") or "-"
             fat = data.get("fat") or "-"
             carbs = data.get("carbs") or "-"
@@ -1116,3 +1204,244 @@ class CalorieTrackerTab(ttk.Frame):
             self.products_tree.insert(
                 "", "end", values=(name, data["calories"], protein, fat, carbs, serving)
             )
+
+    def _filter_products(self):
+        """Фильтрует продукты по поисковому запросу"""
+        search_text = self.product_search_var.get()
+        self._update_products_display(search_text)
+
+    def _show_csv_import_dialog(self):
+        """Диалог массового импорта продуктов через CSV"""
+        dialog = tk.Toplevel(self)
+        dialog.title("Массовый импорт продуктов (CSV)")
+        dialog.geometry("700x500")
+
+        screen_width = dialog.winfo_screenwidth()
+        screen_height = dialog.winfo_screenheight()
+        x = (screen_width - 700) // 2
+        y = (screen_height - 500) // 2
+        dialog.geometry(f"700x500+{x}+{y}")
+
+        dialog.transient(self)
+        dialog.grab_set()
+
+        main_frame = ttk.Frame(dialog, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            main_frame,
+            text="Формат CSV (через точку с запятой):",
+            font=("Arial", 11, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 5))
+
+        ttk.Label(
+            main_frame,
+            text="название;калории;белки;жиры;углеводы",
+            font=("Arial", 10),
+            foreground="gray",
+        ).pack(anchor=tk.W, pady=(0, 10))
+
+        ttk.Label(
+            main_frame,
+            text="Примеры:",
+            font=("Arial", 10, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 5))
+
+        examples_text = """Хлеб белый;265;8;3;50
+Куриная грудка;113;23;2;0
+Рис отварной;130;3;1;28
+Яйцо куриное;157;13;11;1"""
+
+        examples_label = ttk.Label(
+            main_frame,
+            text=examples_text,
+            font=("Courier", 9),
+            foreground="gray",
+        )
+        examples_label.pack(anchor=tk.W, pady=(0, 15))
+
+        ttk.Label(
+            main_frame,
+            text="Введите данные (каждый продукт с новой строки):",
+            font=("Arial", 10, "bold"),
+        ).pack(anchor=tk.W, pady=(0, 5))
+
+        text_frame = ttk.Frame(main_frame)
+        text_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        text_widget = tk.Text(text_frame, height=15, font=("Courier", 10))
+        text_scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+        text_widget.configure(yscrollcommand=text_scrollbar.set)
+
+        text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        text_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def import_csv():
+            content = text_widget.get("1.0", tk.END).strip()
+            if not content:
+                messagebox.showwarning("Ошибка", "Введите данные для импорта")
+                return
+
+            lines = content.split("\n")
+            success_count = 0
+            error_lines = []
+
+            for i, line in enumerate(lines, 1):
+                line = line.strip()
+                if not line:
+                    continue
+
+                parts = line.split(";")
+                if len(parts) < 2:
+                    error_lines.append(f"Строка {i}: недостаточно данных")
+                    continue
+
+                try:
+                    name = parts[0].strip()
+                    calories = int(parts[1].strip())
+                    protein = int(parts[2].strip()) if len(parts) > 2 and parts[2].strip() else None
+                    fat = int(parts[3].strip()) if len(parts) > 3 and parts[3].strip() else None
+                    carbs = int(parts[4].strip()) if len(parts) > 4 and parts[4].strip() else None
+
+                    if not name:
+                        error_lines.append(f"Строка {i}: пустое название")
+                        continue
+
+                    self.storage.add_product_to_db(name, calories, protein, fat, carbs)
+                    success_count += 1
+
+                except ValueError:
+                    error_lines.append(f"Строка {i}: некорректные числовые значения")
+
+            self.storage.save()
+            self._update_products_display()
+
+            result_msg = f"Успешно импортировано: {success_count} продуктов"
+            if error_lines:
+                result_msg += f"\n\nОшибки:\n" + "\n".join(error_lines[:10])
+                if len(error_lines) > 10:
+                    result_msg += f"\n... и еще {len(error_lines) - 10}"
+
+            messagebox.showinfo("Результат импорта", result_msg)
+            if success_count > 0:
+                dialog.destroy()
+
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.pack(fill=tk.X)
+
+        ttk.Button(
+            buttons_frame, text="Импортировать", command=import_csv, width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            buttons_frame, text="Отмена", command=dialog.destroy, width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+    def _create_product_from_dialog(
+        self, parent_dialog, meal_type: str, edit_mode: bool, edit_index: int
+    ):
+        """Создает новый продукт из диалога добавления к приему пищи"""
+        parent_dialog.destroy()
+
+        create_dialog = tk.Toplevel(self)
+        create_dialog.title("Создать продукт")
+        create_dialog.geometry("600x500")
+
+        screen_width = create_dialog.winfo_screenwidth()
+        screen_height = create_dialog.winfo_screenheight()
+        x = (screen_width - 600) // 2
+        y = (screen_height - 500) // 2
+        create_dialog.geometry(f"600x500+{x}+{y}")
+
+        create_dialog.transient(self)
+        create_dialog.grab_set()
+
+        fields_frame = ttk.Frame(create_dialog, padding=20)
+        fields_frame.pack(fill=tk.BOTH, expand=True)
+
+        row = 0
+
+        ttk.Label(fields_frame, text="Название продукта:", font=("Arial", 10)).grid(
+            row=row, column=0, sticky=tk.W, pady=5
+        )
+        name_entry = ttk.Entry(fields_frame, width=35)
+        name_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
+        name_entry.focus()
+        row += 1
+
+        ttk.Label(fields_frame, text="Калории на 100г:", font=("Arial", 10)).grid(
+            row=row, column=0, sticky=tk.W, pady=5
+        )
+        calories_entry = ttk.Entry(fields_frame, width=35)
+        calories_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
+        row += 1
+
+        ttk.Separator(fields_frame, orient="horizontal").grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
+        row += 1
+
+        ttk.Label(fields_frame, text="БЖУ (опционально):", font=("Arial", 10, "bold")).grid(
+            row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 5)
+        )
+        row += 1
+
+        ttk.Label(fields_frame, text="Белки г:", font=("Arial", 10)).grid(
+            row=row, column=0, sticky=tk.W, pady=5
+        )
+        protein_entry = ttk.Entry(fields_frame, width=35)
+        protein_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
+        row += 1
+
+        ttk.Label(fields_frame, text="Жиры г:", font=("Arial", 10)).grid(
+            row=row, column=0, sticky=tk.W, pady=5
+        )
+        fat_entry = ttk.Entry(fields_frame, width=35)
+        fat_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
+        row += 1
+
+        ttk.Label(fields_frame, text="Углеводы г:", font=("Arial", 10)).grid(
+            row=row, column=0, sticky=tk.W, pady=5
+        )
+        carbs_entry = ttk.Entry(fields_frame, width=35)
+        carbs_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
+        row += 1
+
+        def save_and_reopen():
+            name = name_entry.get().strip()
+            calories_str = calories_entry.get().strip()
+
+            if not name or not calories_str:
+                messagebox.showwarning("Ошибка", "Название и калории обязательны")
+                return
+
+            try:
+                calories = int(calories_str)
+                protein = int(protein_entry.get()) if protein_entry.get().strip() else None
+                fat = int(fat_entry.get()) if fat_entry.get().strip() else None
+                carbs = int(carbs_entry.get()) if carbs_entry.get().strip() else None
+
+                self.storage.add_product_to_db(name, calories, protein, fat, carbs)
+                self.storage.save()
+                self._update_products_display()
+
+                create_dialog.destroy()
+                self._show_add_product_dialog(meal_type, edit_mode, edit_index)
+
+            except ValueError:
+                messagebox.showwarning("Ошибка", "Введите корректные числовые значения")
+
+        buttons_frame = ttk.Frame(fields_frame)
+        buttons_frame.grid(row=row, column=0, columnspan=2, pady=(20, 0))
+        row += 1
+
+        ttk.Button(
+            buttons_frame, text="Создать и продолжить", command=save_and_reopen, width=20
+        ).pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            buttons_frame, text="Отмена", command=create_dialog.destroy, width=15
+        ).pack(side=tk.LEFT, padx=5)
+
+        create_dialog.bind("<Return>", lambda e: save_and_reopen())
+        create_dialog.bind("<Escape>", lambda e: create_dialog.destroy())
