@@ -63,7 +63,7 @@ class CalorieStorage:
         serving_size: Optional[int] = None,
         calories_per_serving: Optional[int] = None,
     ) -> None:
-        """Обновляет продукт в базе"""
+        """Обновляет продукт в базе и пересчитывает все связанные записи"""
         if old_name != name and old_name in self._products_db:
             del self._products_db[old_name]
 
@@ -80,11 +80,55 @@ class CalorieStorage:
         }
         self._modified = True
 
+        self._recalculate_entries_for_product(old_name, name)
+
     def remove_product_from_db(self, name: str) -> None:
         """Удаляет продукт из базы"""
         if name in self._products_db:
             del self._products_db[name]
             self._modified = True
+
+    def _recalculate_entries_for_product(
+        self, old_name: str, new_name: str
+    ) -> None:
+        """Пересчитывает калории и БЖУ для всех записей с продуктом"""
+        if new_name not in self._products_db:
+            return
+
+        product = self._products_db[new_name]
+
+        for date in self._daily_entries:
+            for meal_type in self._daily_entries[date]:
+                for entry in self._daily_entries[date][meal_type]:
+                    if entry.get("product") in [old_name, new_name]:
+                        entry["product"] = new_name
+
+                        amount = entry.get("amount", 1.0)
+                        is_grams = entry.get("is_grams", False)
+
+                        if is_grams:
+                            multiplier = amount / 100.0
+                        else:
+                            multiplier = amount
+
+                        entry["calories"] = int(product["calories"] * multiplier)
+                        entry["protein"] = (
+                            int(product["protein"] * multiplier)
+                            if product["protein"]
+                            else None
+                        )
+                        entry["fat"] = (
+                            int(product["fat"] * multiplier)
+                            if product["fat"]
+                            else None
+                        )
+                        entry["carbs"] = (
+                            int(product["carbs"] * multiplier)
+                            if product["carbs"]
+                            else None
+                        )
+
+        self._modified = True
 
     def get_all_products(self) -> Dict[str, dict]:
         """Возвращает всю базу продуктов"""
@@ -315,23 +359,24 @@ class CalorieTrackerTab(ttk.Frame):
 
     def setup_ui(self):
         """Создает UI компоненты с общим скроллом"""
-        outer_canvas = tk.Canvas(self, highlightthickness=0)
-        outer_scrollbar = ttk.Scrollbar(self, orient="vertical", command=outer_canvas.yview)
+        self.outer_canvas = tk.Canvas(self, highlightthickness=0)
+        outer_scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.outer_canvas.yview)
 
-        self.main_container = ttk.Frame(outer_canvas)
+        self.main_container = ttk.Frame(self.outer_canvas)
 
         self.main_container.bind(
-            "<Configure>", lambda e: outer_canvas.configure(scrollregion=outer_canvas.bbox("all"))
+            "<Configure>", lambda e: self.outer_canvas.configure(scrollregion=self.outer_canvas.bbox("all"))
         )
 
-        outer_canvas.create_window((0, 0), window=self.main_container, anchor="nw")
-        outer_canvas.configure(yscrollcommand=outer_scrollbar.set)
+        self.window_id = self.outer_canvas.create_window((0, 0), window=self.main_container, anchor="nw")
+        self.outer_canvas.configure(yscrollcommand=outer_scrollbar.set)
+        self.outer_canvas.bind("<Configure>", self._on_canvas_configure)
 
         outer_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        outer_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.outer_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        outer_canvas.bind_all(
-            "<MouseWheel>", lambda e: outer_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        self.outer_canvas.bind_all(
+            "<MouseWheel>", lambda e: self.outer_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
         )
 
         content_frame = ttk.Frame(self.main_container)
@@ -343,6 +388,11 @@ class CalorieTrackerTab(ttk.Frame):
         self._create_products_panel(content_frame)
 
         self._update_all_displays()
+
+    def _on_canvas_configure(self, event):
+        """Обновляет ширину окна при изменении размера canvas"""
+        self.outer_canvas.itemconfig(self.window_id, width=event.width)
+        self.outer_canvas.configure(scrollregion=self.outer_canvas.bbox("all"))
 
     def _create_date_panel(self, parent):
         """Панель навигации по дням"""
@@ -660,13 +710,15 @@ class CalorieTrackerTab(ttk.Frame):
                     self.storage.update_product_in_db(
                         product_name, name, calories, protein, fat, carbs, serving, cal_serving
                     )
+                    self.storage.save()
+                    self._update_all_displays()
                 else:
                     self.storage.add_product_to_db(
                         name, calories, protein, fat, carbs, serving, cal_serving
                     )
+                    self.storage.save()
+                    self._update_products_display()
 
-                self.storage.save()
-                self._update_products_display()
                 dialog.destroy()
 
             except ValueError:
