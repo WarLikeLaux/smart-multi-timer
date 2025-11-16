@@ -16,6 +16,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from utils.resource_path import get_resource_path
 
 
+def _has_module(module_name):
+    """Проверяет доступность модуля"""
+    try:
+        __import__(module_name)
+        return True
+    except ImportError:
+        return False
+
+
 class TestResourcePath:
     """Тесты для функции get_resource_path"""
 
@@ -60,18 +69,30 @@ class TestBasicUtilities:
         from utils import constants
         assert hasattr(constants, 'IMAGES') or hasattr(constants, 'SOUNDS')
 
+    @pytest.mark.skipif(
+        not _has_module('pygame'),
+        reason="pygame не установлен"
+    )
     def test_import_sound_utils(self):
-        """Тест: импорт модуля sound_utils"""
+        """Тест: импорт модуля sound_utils (требует pygame)"""
         from utils import sound_utils
         # Проверяем что модуль импортируется без ошибок
         assert sound_utils is not None
 
+    @pytest.mark.skipif(
+        not _has_module('tkinter'),
+        reason="tkinter не установлен"
+    )
     def test_import_timer_notification(self):
-        """Тест: импорт модуля timer_notification"""
+        """Тест: импорт модуля timer_notification (требует tkinter)"""
         from utils import timer_notification
         assert timer_notification is not None
 
+    @pytest.mark.skipif(
+        not _has_module('tkinter'),
+        reason="tkinter не установлен"
+    )
     def test_import_habit_reminder(self):
-        """Тест: импорт модуля habit_reminder"""
+        """Тест: импорт модуля habit_reminder (требует tkinter)"""
         from utils import habit_reminder
         assert habit_reminder is not None
