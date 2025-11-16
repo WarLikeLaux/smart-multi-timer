@@ -10,12 +10,14 @@ echo ========================================
 echo.
 echo 1. Запустить приложение
 echo 2. Собрать exe файл
+echo 3. Запустить тесты
 echo 0. Выход
 echo.
-set /p choice="Выберите действие (0-2): "
+set /p choice="Выберите действие (0-3): "
 
 if "%choice%"=="1" goto run_app
 if "%choice%"=="2" goto build_app
+if "%choice%"=="3" goto run_tests
 if "%choice%"=="0" goto end
 echo.
 echo ❌ Неверный выбор. Попробуйте снова.
@@ -106,6 +108,51 @@ echo ✓ Сборка завершена
 echo ========================================
 echo.
 echo Файл находится в: dist\
+echo.
+pause
+goto menu
+
+:run_tests
+cls
+echo ========================================
+echo Запуск тестов
+echo ========================================
+echo.
+
+REM Обновление из git перед запуском тестов
+call :git_update
+echo.
+
+REM Проверка Python
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo ❌ Python не найден. Установите Python 3.x и добавьте в PATH
+    echo.
+    pause
+    goto menu
+)
+
+echo ✓ Python найден
+echo.
+
+REM Установка всех зависимостей из requirements.txt
+echo Установка зависимостей...
+pip install -r src\requirements.txt
+if errorlevel 1 (
+    echo ⚠ Ошибка установки зависимостей, продолжаем...
+)
+echo.
+
+REM Запуск тестов
+echo ========================================
+echo Запуск тестов...
+echo ========================================
+echo.
+python -m pytest tests/ -v
+echo.
+echo ========================================
+echo Тесты завершены
+echo ========================================
 echo.
 pause
 goto menu
