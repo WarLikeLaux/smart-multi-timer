@@ -63,7 +63,6 @@ class TestHabitsStorage:
         habits_tab.save_habits()
 
         new_tab = HabitsTab(habits_tab.parent)
-        new_tab.load_habits()
 
         assert set(new_tab.all_times) == set(habits_tab.default_times)
         assert len(new_tab.custom_times) == 0
@@ -81,7 +80,6 @@ class TestHabitsStorage:
         habits_tab.save_habits()
 
         new_tab = HabitsTab(habits_tab.parent)
-        new_tab.load_habits()
 
         assert custom_time in new_tab.all_times
         assert custom_time in new_tab.custom_times
@@ -107,7 +105,6 @@ class TestHabitsStorage:
         habits_tab.save_habits()
 
         new_tab = HabitsTab(habits_tab.parent)
-        new_tab.load_habits()
 
         assert len(new_tab.habits["Утро"]) == 1
         loaded_habit = new_tab.habits["Утро"][0]
@@ -136,7 +133,6 @@ class TestHabitsStorage:
         habits_tab.save_habits()
 
         new_tab = HabitsTab(habits_tab.parent)
-        new_tab.load_habits()
 
         loaded_habit = new_tab.habits["День"][0]
         assert loaded_habit["completed_repeats"] == 3
@@ -179,7 +175,6 @@ class TestHabitsStorage:
         habits_tab.save_habits()
 
         new_tab = HabitsTab(habits_tab.parent)
-        new_tab.load_habits()
 
         assert len(new_tab.habits["Утро"]) == 1
         assert len(new_tab.habits["Вечер"]) == 1
@@ -195,7 +190,6 @@ class TestHabitsStorage:
         habits_tab.save_habits()
 
         new_tab = HabitsTab(habits_tab.parent)
-        new_tab.load_habits()
 
         assert new_tab.time_settings["Утро"]["quick_timer_minutes"] == 25
 
