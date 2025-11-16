@@ -119,6 +119,10 @@ echo Запуск тестов
 echo ========================================
 echo.
 
+REM Обновление из git перед запуском тестов
+call :git_update
+echo.
+
 REM Проверка Python
 python --version >nul 2>&1
 if errorlevel 1 (
@@ -131,14 +135,13 @@ if errorlevel 1 (
 echo ✓ Python найден
 echo.
 
-REM Установка pytest если не установлен
-echo Проверка pytest...
-python -m pytest --version >nul 2>&1
+REM Установка всех зависимостей из requirements.txt
+echo Установка зависимостей...
+pip install -r src\requirements.txt
 if errorlevel 1 (
-    echo pytest не найден, устанавливаю...
-    pip install pytest pytest-cov
-    echo.
+    echo ⚠ Ошибка установки зависимостей, продолжаем...
 )
+echo.
 
 REM Запуск тестов
 echo ========================================

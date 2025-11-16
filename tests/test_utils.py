@@ -69,29 +69,17 @@ class TestBasicUtilities:
         from utils import constants
         assert hasattr(constants, 'IMAGES') or hasattr(constants, 'SOUNDS')
 
-    @pytest.mark.skipif(
-        not _has_module('pygame'),
-        reason="pygame не установлен"
-    )
     def test_import_sound_utils(self):
         """Тест: импорт модуля sound_utils (требует pygame)"""
         from utils import sound_utils
         # Проверяем что модуль импортируется без ошибок
         assert sound_utils is not None
 
-    @pytest.mark.skipif(
-        not _has_module('tkinter'),
-        reason="tkinter не установлен"
-    )
     def test_import_timer_notification(self):
         """Тест: импорт модуля timer_notification (требует tkinter)"""
         from utils import timer_notification
         assert timer_notification is not None
 
-    @pytest.mark.skipif(
-        not _has_module('tkinter'),
-        reason="tkinter не установлен"
-    )
     def test_import_habit_reminder(self):
         """Тест: импорт модуля habit_reminder (требует tkinter)"""
         from utils import habit_reminder
