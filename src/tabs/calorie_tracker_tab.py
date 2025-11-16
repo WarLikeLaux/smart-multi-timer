@@ -1348,13 +1348,13 @@ class CalorieTrackerTab(ttk.Frame):
 
         create_dialog = tk.Toplevel(self)
         create_dialog.title("Создать продукт")
-        create_dialog.geometry("650x600")
+        create_dialog.geometry("650x650")
 
         screen_width = create_dialog.winfo_screenwidth()
         screen_height = create_dialog.winfo_screenheight()
         x = (screen_width - 650) // 2
-        y = (screen_height - 600) // 2
-        create_dialog.geometry(f"650x600+{x}+{y}")
+        y = (screen_height - 650) // 2
+        create_dialog.geometry(f"650x650+{x}+{y}")
 
         create_dialog.resizable(False, False)
         create_dialog.transient(self)
@@ -1367,7 +1367,7 @@ class CalorieTrackerTab(ttk.Frame):
 
         ttk.Label(
             fields_frame,
-            text="Быстрый ввод CSV (название;ккал;б;ж;у;размер_порции):",
+            text="Быстрый ввод CSV (название;ккал_на_порцию;размер_порции;б;ж;у):",
             font=("Arial", 10, "bold"),
         ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
         row += 1
@@ -1379,7 +1379,7 @@ class CalorieTrackerTab(ttk.Frame):
 
         ttk.Label(
             fields_frame,
-            text="Пример: Яйцо;157;13;11;1;50",
+            text="Пример: Яйцо;78;50;13;11;1 (авто-расчёт ккал на 100г)",
             font=("Arial", 8),
             foreground="gray",
         ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
@@ -1391,28 +1391,31 @@ class CalorieTrackerTab(ttk.Frame):
                 return
 
             parts = csv_text.split(";")
-            if len(parts) >= 2:
+            if len(parts) >= 3:
+                # Формат: название;ккал_на_порцию;размер_порции;б;ж;у
                 name_entry.delete(0, tk.END)
                 name_entry.insert(0, parts[0].strip())
 
-                calories_entry.delete(0, tk.END)
-                calories_entry.insert(0, parts[1].strip())
+                calories_per_serving_entry.delete(0, tk.END)
+                calories_per_serving_entry.insert(0, parts[1].strip())
 
-                if len(parts) > 2 and parts[2].strip():
-                    protein_entry.delete(0, tk.END)
-                    protein_entry.insert(0, parts[2].strip())
+                serving_entry.delete(0, tk.END)
+                serving_entry.insert(0, parts[2].strip())
+
+                # Оставляем calories пустым для автоматического расчёта
+                calories_entry.delete(0, tk.END)
 
                 if len(parts) > 3 and parts[3].strip():
-                    fat_entry.delete(0, tk.END)
-                    fat_entry.insert(0, parts[3].strip())
+                    protein_entry.delete(0, tk.END)
+                    protein_entry.insert(0, parts[3].strip())
 
                 if len(parts) > 4 and parts[4].strip():
-                    carbs_entry.delete(0, tk.END)
-                    carbs_entry.insert(0, parts[4].strip())
+                    fat_entry.delete(0, tk.END)
+                    fat_entry.insert(0, parts[4].strip())
 
                 if len(parts) > 5 and parts[5].strip():
-                    serving_entry.delete(0, tk.END)
-                    serving_entry.insert(0, parts[5].strip())
+                    carbs_entry.delete(0, tk.END)
+                    carbs_entry.insert(0, parts[5].strip())
 
         ttk.Button(
             fields_frame,
@@ -1434,11 +1437,18 @@ class CalorieTrackerTab(ttk.Frame):
         name_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
         row += 1
 
-        ttk.Label(fields_frame, text="Калории на 100г:", font=("Arial", 10)).grid(
+        ttk.Label(fields_frame, text="Калории на 100г (авто):", font=("Arial", 10)).grid(
             row=row, column=0, sticky=tk.W, pady=5
         )
         calories_entry = ttk.Entry(fields_frame, width=35)
         calories_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
+        row += 1
+
+        ttk.Label(fields_frame, text="Калории на порцию (опц):", font=("Arial", 10)).grid(
+            row=row, column=0, sticky=tk.W, pady=5
+        )
+        calories_per_serving_entry = ttk.Entry(fields_frame, width=35)
+        calories_per_serving_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
         row += 1
 
         ttk.Label(fields_frame, text="Размер порции г (опц):", font=("Arial", 10)).grid(
@@ -1482,19 +1492,32 @@ class CalorieTrackerTab(ttk.Frame):
         def save_and_reopen():
             name = name_entry.get().strip()
             calories_str = calories_entry.get().strip()
+            calories_per_serving_str = calories_per_serving_entry.get().strip()
+            serving_str = serving_entry.get().strip()
 
-            if not name or not calories_str:
-                messagebox.showwarning("Ошибка", "Название и калории обязательны")
+            # Проверка: либо калории на 100г, либо калории на порцию + размер порции
+            if not name:
+                messagebox.showwarning("Ошибка", "Название обязательно")
+                return
+
+            if not calories_str and not (calories_per_serving_str and serving_str):
+                messagebox.showwarning(
+                    "Ошибка",
+                    "Укажите либо калории на 100г, либо калории на порцию + размер порции"
+                )
                 return
 
             try:
-                calories = int(calories_str)
+                calories = int(calories_str) if calories_str else 0
+                calories_per_serving = int(calories_per_serving_str) if calories_per_serving_str else None
                 protein = int(protein_entry.get()) if protein_entry.get().strip() else None
                 fat = int(fat_entry.get()) if fat_entry.get().strip() else None
                 carbs = int(carbs_entry.get()) if carbs_entry.get().strip() else None
-                serving = int(serving_entry.get()) if serving_entry.get().strip() else None
+                serving = int(serving_str) if serving_str else None
 
-                self.storage.add_product_to_db(name, calories, protein, fat, carbs, serving)
+                self.storage.add_product_to_db(
+                    name, calories, protein, fat, carbs, serving, calories_per_serving
+                )
                 self.storage.save()
                 self._update_products_display()
 
