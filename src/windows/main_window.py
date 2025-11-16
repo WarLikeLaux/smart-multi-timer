@@ -10,6 +10,7 @@ from pygame import mixer
 from ttkthemes import ThemedTk
 
 from components.timer import Timer
+from tabs.calorie_tracker_tab import CalorieTrackerTab
 from tabs.habits_tab import HabitsTab
 from tabs.medication_tab import MedicationTab
 from tabs.pushup_tracker_tab import PushupTrackerTab
@@ -142,6 +143,9 @@ class MainWindow(ThemedTk):
         self.habits_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.habits_tab, text="Привычки")
 
+        self.calorie_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.calorie_tab, text="Калории")
+
         self.settings_tab_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.settings_tab_frame, text="Настройки")
 
@@ -161,6 +165,9 @@ class MainWindow(ThemedTk):
 
         self.settings_tab = SettingsTab(self.settings_tab_frame, self)
         self.settings_tab.pack(expand=True, fill=tk.BOTH)
+
+        self.calorie_tracker = CalorieTrackerTab(self.calorie_tab, self.settings_tab)
+        self.calorie_tracker.pack(expand=True, fill=tk.BOTH)
 
         style = ttk.Style()
         style.configure("TNotebook.Tab", focuscolor="none")

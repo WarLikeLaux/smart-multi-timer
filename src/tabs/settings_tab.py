@@ -68,32 +68,87 @@ class SettingsTab(ttk.Frame):
         )
         dev_note.pack(anchor=tk.W, padx=(25, 0), pady=(5, 0))
 
+        # Секция: Калории
+        calorie_section = ttk.LabelFrame(
+            main_container,
+            text="Настройки калорий",
+            padding=15
+        )
+        calorie_section.pack(fill=tk.X, pady=(0, 15))
+
+        # Целевое количество калорий
+        target_frame = ttk.Frame(calorie_section)
+        target_frame.pack(fill=tk.X, pady=5)
+
+        ttk.Label(
+            target_frame,
+            text="Целевое количество калорий в день:",
+            font=("Arial", 10)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+
+        self.target_calories_var = tk.StringVar(value="2000")
+        target_spinbox = ttk.Spinbox(
+            target_frame,
+            from_=1000,
+            to=5000,
+            increment=100,
+            width=10,
+            textvariable=self.target_calories_var,
+            command=self.on_setting_changed
+        )
+        target_spinbox.pack(side=tk.LEFT)
+
+        ttk.Label(
+            target_frame,
+            text="ккал",
+            font=("Arial", 10)
+        ).pack(side=tk.LEFT, padx=(5, 0))
+
+        # Описание
+        calorie_description = ttk.Label(
+            calorie_section,
+            text="Это значение используется для расчета прогресса и остатка калорий.",
+            foreground="gray",
+            font=("Arial", 9)
+        )
+        calorie_description.pack(anchor=tk.W, padx=(0, 0), pady=(5, 0))
+
     def load_settings(self):
         """Загружает настройки из settings.json"""
         try:
             with open("settings.json", "r", encoding="utf-8") as f:
                 settings = json.load(f)
                 self.close_on_exit_var.set(settings.get("close_on_exit", True))
+                self.target_calories_var.set(str(settings.get("target_calories", 2000)))
         except FileNotFoundError:
-            # Файл не существует - используем дефолтное значение True
+            # Файл не существует - используем дефолтные значения
             self.close_on_exit_var.set(True)
+            self.target_calories_var.set("2000")
         except json.JSONDecodeError:
             messagebox.showwarning(
                 "Предупреждение",
                 "Файл settings.json поврежден. Используются настройки по умолчанию."
             )
             self.close_on_exit_var.set(True)
+            self.target_calories_var.set("2000")
         except Exception as e:
             messagebox.showerror(
                 "Ошибка",
                 f"Не удалось загрузить настройки: {str(e)}"
             )
             self.close_on_exit_var.set(True)
+            self.target_calories_var.set("2000")
 
     def save_settings(self):
         """Сохраняет настройки в settings.json"""
+        try:
+            target_calories = int(self.target_calories_var.get())
+        except ValueError:
+            target_calories = 2000
+
         settings = {
-            "close_on_exit": self.close_on_exit_var.get()
+            "close_on_exit": self.close_on_exit_var.get(),
+            "target_calories": target_calories
         }
 
         try:
@@ -112,3 +167,10 @@ class SettingsTab(ttk.Frame):
     def get_close_on_exit(self) -> bool:
         """Возвращает текущее значение настройки close_on_exit"""
         return self.close_on_exit_var.get()
+
+    def get_target_calories(self) -> int:
+        """Возвращает целевое количество калорий"""
+        try:
+            return int(self.target_calories_var.get())
+        except ValueError:
+            return 2000
