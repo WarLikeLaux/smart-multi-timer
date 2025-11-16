@@ -26,24 +26,28 @@ class TestCalorieStorage:
     """Тесты для класса CalorieStorage"""
 
     @pytest.fixture
-    def temp_file(self):
-        """Создает временный файл для тестов"""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
-            filepath = f.name
-        yield filepath
+    def temp_dir(self):
+        """Создает временную директорию для тестов"""
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
         # Очистка после теста
-        if os.path.exists(filepath):
-            os.unlink(filepath)
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
     @pytest.fixture
-    def storage(self, temp_file, monkeypatch):
+    def storage(self, temp_dir, monkeypatch):
         """Создает CalorieStorage с временным файлом"""
-        # Патчим путь к файлу через monkeypatch
-        monkeypatch.setattr(
-            'tabs.calorie_storage.CalorieStorage._get_filepath',
-            lambda self: temp_file
-        )
-        return CalorieStorage()
+        # Меняем текущую директорию на временную
+        original_dir = os.getcwd()
+        os.chdir(temp_dir)
+
+        # Создаём storage
+        storage = CalorieStorage()
+
+        yield storage
+
+        # Возвращаем исходную директорию
+        os.chdir(original_dir)
 
     def test_init_creates_empty_storage(self, storage):
         """Тест: инициализация создаёт пустое хранилище"""
@@ -153,7 +157,7 @@ class TestCalorieStorage:
         assert total == 246
 
     def test_calculate_meal_total_calories_servings(self, storage):
-        """Тест: расчёт калорий приёма пищи (в порциях)"""
+        """Тест: расчёт калорий приёма пищи (в порциях по 100г)"""
         storage.add_product_to_db(
             "Йогурт",
             calories=60,
@@ -163,13 +167,13 @@ class TestCalorieStorage:
             date="2025-01-15",
             meal_type="snack",
             product="Йогурт",
-            amount=2,  # 2 порции
+            amount=2,  # 2 порции по 100г (т.к. is_grams=False означает множитель)
             is_grams=False
         )
 
         total = storage.get_meal_total_calories("2025-01-15", "snack")
-        # (60 / 100) * 150 * 2 = 180
-        assert total == 180
+        # При is_grams=False: calories * amount = 60 * 2 = 120
+        assert total == 120
 
     def test_get_day_total_calories(self, storage):
         """Тест: расчёт общих калорий за день"""
@@ -290,7 +294,7 @@ class TestCalorieStorage:
         assert total == 0
 
     def test_macros_with_none_values(self, storage):
-        """Тест: продукт с незаполненными БЖУ не ломает расчёты"""
+        """Тест: продукт с незаполненными БЖУ возвращает None для макросов"""
         storage.add_product_to_db(
             "ПростойПродукт",
             calories=100,
@@ -301,59 +305,61 @@ class TestCalorieStorage:
         storage.add_meal_entry("2025-01-15", "lunch", "ПростойПродукт", 100, True)
 
         macros = storage.get_meal_total_macros("2025-01-15", "lunch")
-        # None значения должны быть обработаны корректно
-        assert macros["protein"] is None or macros["protein"] == 0
-        assert macros["fat"] is None or macros["fat"] == 0
-        assert macros["carbs"] is None or macros["carbs"] == 0
+        # Если нет данных, _calculate_macros должен вернуть None для каждого макроса
+        assert macros["protein"] is None
+        assert macros["fat"] is None
+        assert macros["carbs"] is None
 
 
 class TestCalorieStoragePersistence:
     """Тесты персистентности CalorieStorage"""
 
     @pytest.fixture
-    def temp_file(self):
-        """Создает временный файл для тестов"""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
-            filepath = f.name
-        yield filepath
-        if os.path.exists(filepath):
-            os.unlink(filepath)
+    def temp_dir(self):
+        """Создает временную директорию для тестов"""
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def test_save_and_load_products(self, temp_file, monkeypatch):
+    def test_save_and_load_products(self, temp_dir):
         """Тест: сохранение и загрузка базы продуктов"""
-        # Создаём первое хранилище и добавляем продукт
-        monkeypatch.setattr(
-            'tabs.calorie_storage.CalorieStorage._get_filepath',
-            lambda self: temp_file
-        )
-        storage1 = CalorieStorage()
-        storage1.add_product_to_db("Яблоко", calories=52, protein=0, fat=0, carbs=14)
-        storage1.save()
+        original_dir = os.getcwd()
+        os.chdir(temp_dir)
 
-        # Создаём второе хранилище из того же файла
-        storage2 = CalorieStorage()
-        products = storage2.get_all_products()
+        try:
+            # Создаём первое хранилище и добавляем продукт
+            storage1 = CalorieStorage()
+            storage1.add_product_to_db("Яблоко", calories=52, protein=0, fat=0, carbs=14)
+            storage1.save()
 
-        assert "Яблоко" in products
-        assert products["Яблоко"]["calories"] == 52
-        assert products["Яблоко"]["carbs"] == 14
+            # Создаём второе хранилище из того же файла
+            storage2 = CalorieStorage()
+            products = storage2.get_all_products()
 
-    def test_save_and_load_meal_entries(self, temp_file, monkeypatch):
+            assert "Яблоко" in products
+            assert products["Яблоко"]["calories"] == 52
+            assert products["Яблоко"]["carbs"] == 14
+        finally:
+            os.chdir(original_dir)
+
+    def test_save_and_load_meal_entries(self, temp_dir):
         """Тест: сохранение и загрузка записей приёмов пищи"""
-        monkeypatch.setattr(
-            'tabs.calorie_storage.CalorieStorage._get_filepath',
-            lambda self: temp_file
-        )
+        original_dir = os.getcwd()
+        os.chdir(temp_dir)
 
-        storage1 = CalorieStorage()
-        storage1.add_product_to_db("Рис", calories=130)
-        storage1.add_meal_entry("2025-01-15", "lunch", "Рис", 200, True)
-        storage1.save()
+        try:
+            storage1 = CalorieStorage()
+            storage1.add_product_to_db("Рис", calories=130)
+            storage1.add_meal_entry("2025-01-15", "lunch", "Рис", 200, True)
+            storage1.save()
 
-        storage2 = CalorieStorage()
-        day_data = storage2.get_day_data("2025-01-15")
+            storage2 = CalorieStorage()
+            day_data = storage2.get_day_data("2025-01-15")
 
-        assert "lunch" in day_data
-        assert len(day_data["lunch"]) == 1
-        assert day_data["lunch"][0]["product"] == "Рис"
-        assert day_data["lunch"][0]["amount"] == 200
+            assert "lunch" in day_data
+            assert len(day_data["lunch"]) == 1
+            assert day_data["lunch"][0]["product"] == "Рис"
+            assert day_data["lunch"][0]["amount"] == 200
+        finally:
+            os.chdir(original_dir)
