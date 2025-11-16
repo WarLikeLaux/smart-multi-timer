@@ -641,6 +641,7 @@ class CalorieTrackerTab(ttk.Frame):
         y = (screen_height - 450) // 2
         dialog.geometry(f"500x450+{x}+{y}")
 
+        dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
 
@@ -794,6 +795,7 @@ class CalorieTrackerTab(ttk.Frame):
         y = (screen_height - 550) // 2
         dialog.geometry(f"750x550+{x}+{y}")
 
+        dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
 
@@ -885,11 +887,11 @@ class CalorieTrackerTab(ttk.Frame):
             mode_var.set("grams" if edit_data.get("is_grams") else "portions")
 
         ttk.Radiobutton(
-            content_frame, text="Граммы", variable=mode_var, value="grams"
+            content_frame, text="Граммы", variable=mode_var, value="grams", takefocus=False
         ).grid(row=5, column=0, sticky=tk.W)
 
         ttk.Radiobutton(
-            content_frame, text="Порции", variable=mode_var, value="portions"
+            content_frame, text="Порции", variable=mode_var, value="portions", takefocus=False
         ).grid(row=5, column=1, sticky=tk.W)
 
         amount_frame = ttk.Frame(content_frame)
@@ -1222,6 +1224,7 @@ class CalorieTrackerTab(ttk.Frame):
         y = (screen_height - 500) // 2
         dialog.geometry(f"700x500+{x}+{y}")
 
+        dialog.resizable(False, False)
         dialog.transient(self)
         dialog.grab_set()
 
@@ -1345,14 +1348,15 @@ class CalorieTrackerTab(ttk.Frame):
 
         create_dialog = tk.Toplevel(self)
         create_dialog.title("Создать продукт")
-        create_dialog.geometry("600x500")
+        create_dialog.geometry("650x600")
 
         screen_width = create_dialog.winfo_screenwidth()
         screen_height = create_dialog.winfo_screenheight()
-        x = (screen_width - 600) // 2
-        y = (screen_height - 500) // 2
-        create_dialog.geometry(f"600x500+{x}+{y}")
+        x = (screen_width - 650) // 2
+        y = (screen_height - 600) // 2
+        create_dialog.geometry(f"650x600+{x}+{y}")
 
+        create_dialog.resizable(False, False)
         create_dialog.transient(self)
         create_dialog.grab_set()
 
@@ -1361,12 +1365,73 @@ class CalorieTrackerTab(ttk.Frame):
 
         row = 0
 
+        ttk.Label(
+            fields_frame,
+            text="Быстрый ввод CSV (название;ккал;б;ж;у;размер_порции):",
+            font=("Arial", 10, "bold"),
+        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 5))
+        row += 1
+
+        csv_entry = ttk.Entry(fields_frame, width=50)
+        csv_entry.grid(row=row, column=0, columnspan=2, pady=5, sticky=tk.W+tk.E)
+        csv_entry.focus()
+        row += 1
+
+        ttk.Label(
+            fields_frame,
+            text="Пример: Яйцо;157;13;11;1;50",
+            font=("Arial", 8),
+            foreground="gray",
+        ).grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
+        row += 1
+
+        def parse_csv():
+            csv_text = csv_entry.get().strip()
+            if not csv_text:
+                return
+
+            parts = csv_text.split(";")
+            if len(parts) >= 2:
+                name_entry.delete(0, tk.END)
+                name_entry.insert(0, parts[0].strip())
+
+                calories_entry.delete(0, tk.END)
+                calories_entry.insert(0, parts[1].strip())
+
+                if len(parts) > 2 and parts[2].strip():
+                    protein_entry.delete(0, tk.END)
+                    protein_entry.insert(0, parts[2].strip())
+
+                if len(parts) > 3 and parts[3].strip():
+                    fat_entry.delete(0, tk.END)
+                    fat_entry.insert(0, parts[3].strip())
+
+                if len(parts) > 4 and parts[4].strip():
+                    carbs_entry.delete(0, tk.END)
+                    carbs_entry.insert(0, parts[4].strip())
+
+                if len(parts) > 5 and parts[5].strip():
+                    serving_entry.delete(0, tk.END)
+                    serving_entry.insert(0, parts[5].strip())
+
+        ttk.Button(
+            fields_frame,
+            text="Заполнить из CSV",
+            command=parse_csv,
+            width=20,
+        ).grid(row=row, column=0, columnspan=2, pady=(0, 10))
+        row += 1
+
+        ttk.Separator(fields_frame, orient="horizontal").grid(
+            row=row, column=0, columnspan=2, sticky="ew", pady=10
+        )
+        row += 1
+
         ttk.Label(fields_frame, text="Название продукта:", font=("Arial", 10)).grid(
             row=row, column=0, sticky=tk.W, pady=5
         )
         name_entry = ttk.Entry(fields_frame, width=35)
         name_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
-        name_entry.focus()
         row += 1
 
         ttk.Label(fields_frame, text="Калории на 100г:", font=("Arial", 10)).grid(
@@ -1374,6 +1439,13 @@ class CalorieTrackerTab(ttk.Frame):
         )
         calories_entry = ttk.Entry(fields_frame, width=35)
         calories_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
+        row += 1
+
+        ttk.Label(fields_frame, text="Размер порции г (опц):", font=("Arial", 10)).grid(
+            row=row, column=0, sticky=tk.W, pady=5
+        )
+        serving_entry = ttk.Entry(fields_frame, width=35)
+        serving_entry.grid(row=row, column=1, pady=5, padx=(10, 0))
         row += 1
 
         ttk.Separator(fields_frame, orient="horizontal").grid(
@@ -1420,8 +1492,9 @@ class CalorieTrackerTab(ttk.Frame):
                 protein = int(protein_entry.get()) if protein_entry.get().strip() else None
                 fat = int(fat_entry.get()) if fat_entry.get().strip() else None
                 carbs = int(carbs_entry.get()) if carbs_entry.get().strip() else None
+                serving = int(serving_entry.get()) if serving_entry.get().strip() else None
 
-                self.storage.add_product_to_db(name, calories, protein, fat, carbs)
+                self.storage.add_product_to_db(name, calories, protein, fat, carbs, serving)
                 self.storage.save()
                 self._update_products_display()
 
