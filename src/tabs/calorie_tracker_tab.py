@@ -29,19 +29,26 @@ class CalorieStorage:
         fat: Optional[int] = None,
         carbs: Optional[int] = None,
         serving_size: Optional[int] = None,
+        calories_per_serving: Optional[int] = None,
     ) -> None:
         """
         Добавляет продукт в базу.
 
         Args:
-            serving_size: размер порции в граммах (опционально)
+            calories: калории на 100г (или вычисляется из calories_per_serving)
+            serving_size: размер порции в граммах
+            calories_per_serving: калории на порцию (опционально)
         """
+        if calories_per_serving and serving_size and not calories:
+            calories = int((calories_per_serving / serving_size) * 100)
+
         self._products_db[name] = {
             "calories": calories,
             "protein": protein,
             "fat": fat,
             "carbs": carbs,
             "serving_size": serving_size,
+            "calories_per_serving": calories_per_serving,
         }
         self._modified = True
 
@@ -54,10 +61,14 @@ class CalorieStorage:
         fat: Optional[int] = None,
         carbs: Optional[int] = None,
         serving_size: Optional[int] = None,
+        calories_per_serving: Optional[int] = None,
     ) -> None:
         """Обновляет продукт в базе"""
         if old_name != name and old_name in self._products_db:
             del self._products_db[old_name]
+
+        if calories_per_serving and serving_size and not calories:
+            calories = int((calories_per_serving / serving_size) * 100)
 
         self._products_db[name] = {
             "calories": calories,
@@ -65,6 +76,7 @@ class CalorieStorage:
             "fat": fat,
             "carbs": carbs,
             "serving_size": serving_size,
+            "calories_per_serving": calories_per_serving,
         }
         self._modified = True
 
@@ -302,20 +314,39 @@ class CalorieTrackerTab(ttk.Frame):
         return 2000
 
     def setup_ui(self):
-        """Создает UI компоненты"""
-        self.main_container = ttk.Frame(self)
-        self.main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        """Создает UI компоненты с общим скроллом"""
+        outer_canvas = tk.Canvas(self, highlightthickness=0)
+        outer_scrollbar = ttk.Scrollbar(self, orient="vertical", command=outer_canvas.yview)
 
-        self._create_date_panel()
-        self._create_stats_panel()
-        self._create_meals_panel()
-        self._create_products_panel()
+        self.main_container = ttk.Frame(outer_canvas)
+
+        self.main_container.bind(
+            "<Configure>", lambda e: outer_canvas.configure(scrollregion=outer_canvas.bbox("all"))
+        )
+
+        outer_canvas.create_window((0, 0), window=self.main_container, anchor="nw")
+        outer_canvas.configure(yscrollcommand=outer_scrollbar.set)
+
+        outer_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        outer_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        outer_canvas.bind_all(
+            "<MouseWheel>", lambda e: outer_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        )
+
+        content_frame = ttk.Frame(self.main_container)
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        self._create_date_panel(content_frame)
+        self._create_stats_panel(content_frame)
+        self._create_meals_panel(content_frame)
+        self._create_products_panel(content_frame)
 
         self._update_all_displays()
 
-    def _create_date_panel(self):
+    def _create_date_panel(self, parent):
         """Панель навигации по дням"""
-        date_frame = ttk.Frame(self.main_container)
+        date_frame = ttk.Frame(parent)
         date_frame.pack(fill=tk.X, pady=(0, 10))
 
         ttk.Label(date_frame, text="Дата:", font=("Arial", 12)).pack(
@@ -344,11 +375,9 @@ class CalorieTrackerTab(ttk.Frame):
             date_frame, text="→", command=self._next_day, width=3, takefocus=0
         ).pack(side=tk.LEFT, padx=2)
 
-    def _create_stats_panel(self):
+    def _create_stats_panel(self, parent):
         """Панель статистики с прогресс-баром и БЖУ"""
-        stats_frame = ttk.LabelFrame(
-            self.main_container, text="Статистика за день", padding=10
-        )
+        stats_frame = ttk.LabelFrame(parent, text="Статистика за день", padding=10)
         stats_frame.pack(fill=tk.X, pady=(0, 10))
 
         progress_container = ttk.Frame(stats_frame)
@@ -372,32 +401,10 @@ class CalorieTrackerTab(ttk.Frame):
         self.macros_label = ttk.Label(stats_frame, text="", font=("Arial", 10))
         self.macros_label.pack(pady=(5, 0))
 
-    def _create_meals_panel(self):
-        """Панель приемов пищи со скроллом"""
-        meals_outer_frame = ttk.LabelFrame(
-            self.main_container, text="Приемы пищи", padding=10
-        )
-        meals_outer_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        canvas = tk.Canvas(meals_outer_frame, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(
-            meals_outer_frame, orient="vertical", command=canvas.yview
-        )
-
-        meals_frame = ttk.Frame(canvas)
-        meals_frame.bind(
-            "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=meals_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        canvas.bind_all(
-            "<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
-        )
+    def _create_meals_panel(self, parent):
+        """Панель приемов пищи"""
+        meals_frame = ttk.LabelFrame(parent, text="Приемы пищи", padding=10)
+        meals_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         self.meal_frames = {}
         meal_types = [
@@ -448,10 +455,10 @@ class CalorieTrackerTab(ttk.Frame):
         tree.heading("calories", text="Ккал")
         tree.heading("actions", text="")
 
-        tree.column("product", width=150)
-        tree.column("amount", width=100, anchor="center")
-        tree.column("calories", width=80, anchor="center")
-        tree.column("actions", width=40, anchor="center")
+        tree.column("product", width=250)
+        tree.column("amount", width=150, anchor="center")
+        tree.column("calories", width=100, anchor="center")
+        tree.column("actions", width=60, anchor="center")
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
         tree.configure(yscrollcommand=scrollbar.set)
@@ -470,11 +477,9 @@ class CalorieTrackerTab(ttk.Frame):
             "macros_label": macros_label,
         }
 
-    def _create_products_panel(self):
+    def _create_products_panel(self, parent):
         """Панель управления базой продуктов"""
-        products_frame = ttk.LabelFrame(
-            self.main_container, text="База продуктов", padding=10
-        )
+        products_frame = ttk.LabelFrame(parent, text="База продуктов", padding=10)
         products_frame.pack(fill=tk.BOTH, expand=True)
 
         controls_frame = ttk.Frame(products_frame)
@@ -538,13 +543,13 @@ class CalorieTrackerTab(ttk.Frame):
         """Диалог добавления/редактирования продукта в базе"""
         dialog = tk.Toplevel(self)
         dialog.title("Редактировать продукт" if edit_mode else "Добавить продукт в базу")
-        dialog.geometry("450x350")
+        dialog.geometry("500x450")
 
         screen_width = dialog.winfo_screenwidth()
         screen_height = dialog.winfo_screenheight()
-        x = (screen_width - 450) // 2
-        y = (screen_height - 350) // 2
-        dialog.geometry(f"450x350+{x}+{y}")
+        x = (screen_width - 500) // 2
+        y = (screen_height - 450) // 2
+        dialog.geometry(f"500x450+{x}+{y}")
 
         dialog.transient(self)
         dialog.grab_set()
@@ -560,87 +565,104 @@ class CalorieTrackerTab(ttk.Frame):
         ttk.Label(fields_frame, text="Название продукта:", font=("Arial", 10)).grid(
             row=0, column=0, sticky=tk.W, pady=5
         )
-        name_entry = ttk.Entry(fields_frame, width=30)
+        name_entry = ttk.Entry(fields_frame, width=35)
         name_entry.grid(row=0, column=1, pady=5, padx=(10, 0))
         if edit_mode:
             name_entry.insert(0, product_name)
         name_entry.focus()
 
-        ttk.Label(fields_frame, text="Калории (на 100г):", font=("Arial", 10)).grid(
+        ttk.Label(fields_frame, text="Калории на 100г:", font=("Arial", 10)).grid(
             row=1, column=0, sticky=tk.W, pady=5
         )
-        calories_entry = ttk.Entry(fields_frame, width=30)
+        calories_entry = ttk.Entry(fields_frame, width=35)
         calories_entry.grid(row=1, column=1, pady=5, padx=(10, 0))
         if edit_mode and product_data.get("calories"):
             calories_entry.insert(0, str(product_data["calories"]))
 
-        ttk.Label(fields_frame, text="Белки г (опционально):", font=("Arial", 10)).grid(
-            row=2, column=0, sticky=tk.W, pady=5
+        ttk.Label(
+            fields_frame, text="(оставьте пустым если знаете ккал на порцию)", font=("Arial", 8), foreground="gray"
+        ).grid(row=2, column=1, sticky=tk.W, padx=(10, 0))
+
+        ttk.Label(fields_frame, text="Размер порции г:", font=("Arial", 10)).grid(
+            row=3, column=0, sticky=tk.W, pady=5
         )
-        protein_entry = ttk.Entry(fields_frame, width=30)
-        protein_entry.grid(row=2, column=1, pady=5, padx=(10, 0))
+        serving_entry = ttk.Entry(fields_frame, width=35)
+        serving_entry.grid(row=3, column=1, pady=5, padx=(10, 0))
+        if edit_mode and product_data.get("serving_size"):
+            serving_entry.insert(0, str(product_data["serving_size"]))
+
+        ttk.Label(fields_frame, text="Калории на порцию:", font=("Arial", 10)).grid(
+            row=4, column=0, sticky=tk.W, pady=5
+        )
+        cal_serving_entry = ttk.Entry(fields_frame, width=35)
+        cal_serving_entry.grid(row=4, column=1, pady=5, padx=(10, 0))
+        if edit_mode and product_data.get("calories_per_serving"):
+            cal_serving_entry.insert(0, str(product_data["calories_per_serving"]))
+
+        ttk.Label(
+            fields_frame, text="(автоматически вычислит ккал/100г)", font=("Arial", 8), foreground="gray"
+        ).grid(row=5, column=1, sticky=tk.W, padx=(10, 0))
+
+        ttk.Separator(fields_frame, orient="horizontal").grid(
+            row=6, column=0, columnspan=2, sticky="ew", pady=10
+        )
+
+        ttk.Label(fields_frame, text="Белки г (опционально):", font=("Arial", 10)).grid(
+            row=7, column=0, sticky=tk.W, pady=5
+        )
+        protein_entry = ttk.Entry(fields_frame, width=35)
+        protein_entry.grid(row=7, column=1, pady=5, padx=(10, 0))
         if edit_mode and product_data.get("protein"):
             protein_entry.insert(0, str(product_data["protein"]))
 
         ttk.Label(fields_frame, text="Жиры г (опционально):", font=("Arial", 10)).grid(
-            row=3, column=0, sticky=tk.W, pady=5
+            row=8, column=0, sticky=tk.W, pady=5
         )
-        fat_entry = ttk.Entry(fields_frame, width=30)
-        fat_entry.grid(row=3, column=1, pady=5, padx=(10, 0))
+        fat_entry = ttk.Entry(fields_frame, width=35)
+        fat_entry.grid(row=8, column=1, pady=5, padx=(10, 0))
         if edit_mode and product_data.get("fat"):
             fat_entry.insert(0, str(product_data["fat"]))
 
         ttk.Label(
             fields_frame, text="Углеводы г (опционально):", font=("Arial", 10)
-        ).grid(row=4, column=0, sticky=tk.W, pady=5)
-        carbs_entry = ttk.Entry(fields_frame, width=30)
-        carbs_entry.grid(row=4, column=1, pady=5, padx=(10, 0))
+        ).grid(row=9, column=0, sticky=tk.W, pady=5)
+        carbs_entry = ttk.Entry(fields_frame, width=35)
+        carbs_entry.grid(row=9, column=1, pady=5, padx=(10, 0))
         if edit_mode and product_data.get("carbs"):
             carbs_entry.insert(0, str(product_data["carbs"]))
-
-        ttk.Label(
-            fields_frame, text="Размер порции г (опц.):", font=("Arial", 10)
-        ).grid(row=5, column=0, sticky=tk.W, pady=5)
-        serving_entry = ttk.Entry(fields_frame, width=30)
-        serving_entry.grid(row=5, column=1, pady=5, padx=(10, 0))
-        if edit_mode and product_data.get("serving_size"):
-            serving_entry.insert(0, str(product_data["serving_size"]))
-
-        ttk.Label(
-            fields_frame,
-            text="(Если указан - можно вводить в порциях)",
-            font=("Arial", 8),
-            foreground="gray",
-        ).grid(row=6, column=1, sticky=tk.W, padx=(10, 0))
 
         def save_product():
             name = name_entry.get().strip()
             calories_str = calories_entry.get().strip()
+            serving_str = serving_entry.get().strip()
+            cal_serving_str = cal_serving_entry.get().strip()
 
-            if not name or not calories_str:
+            if not name:
+                messagebox.showwarning("Ошибка", "Название обязательно для заполнения")
+                return
+
+            if not calories_str and not (cal_serving_str and serving_str):
                 messagebox.showwarning(
-                    "Ошибка", "Название и калории обязательны для заполнения"
+                    "Ошибка",
+                    "Укажите калории на 100г ИЛИ калории на порцию + размер порции"
                 )
                 return
 
             try:
-                calories = int(calories_str)
-                protein = (
-                    int(protein_entry.get()) if protein_entry.get().strip() else None
-                )
+                calories = int(calories_str) if calories_str else 0
+                protein = int(protein_entry.get()) if protein_entry.get().strip() else None
                 fat = int(fat_entry.get()) if fat_entry.get().strip() else None
                 carbs = int(carbs_entry.get()) if carbs_entry.get().strip() else None
-                serving = (
-                    int(serving_entry.get()) if serving_entry.get().strip() else None
-                )
+                serving = int(serving_str) if serving_str else None
+                cal_serving = int(cal_serving_str) if cal_serving_str else None
 
                 if edit_mode:
                     self.storage.update_product_in_db(
-                        product_name, name, calories, protein, fat, carbs, serving
+                        product_name, name, calories, protein, fat, carbs, serving, cal_serving
                     )
                 else:
                     self.storage.add_product_to_db(
-                        name, calories, protein, fat, carbs, serving
+                        name, calories, protein, fat, carbs, serving, cal_serving
                     )
 
                 self.storage.save()
@@ -651,7 +673,7 @@ class CalorieTrackerTab(ttk.Frame):
                 messagebox.showwarning("Ошибка", "Введите корректные числовые значения")
 
         buttons_frame = ttk.Frame(fields_frame)
-        buttons_frame.grid(row=7, column=0, columnspan=2, pady=(20, 0))
+        buttons_frame.grid(row=10, column=0, columnspan=2, pady=(20, 0))
 
         ttk.Button(
             buttons_frame, text="Сохранить", command=save_product, width=15
@@ -679,13 +701,13 @@ class CalorieTrackerTab(ttk.Frame):
 
         dialog = tk.Toplevel(self)
         dialog.title("Редактировать запись" if edit_mode else "Добавить продукт")
-        dialog.geometry("500x400")
+        dialog.geometry("650x450")
 
         screen_width = dialog.winfo_screenwidth()
         screen_height = dialog.winfo_screenheight()
-        x = (screen_width - 500) // 2
-        y = (screen_height - 400) // 2
-        dialog.geometry(f"500x400+{x}+{y}")
+        x = (screen_width - 650) // 2
+        y = (screen_height - 450) // 2
+        dialog.geometry(f"650x450+{x}+{y}")
 
         dialog.transient(self)
         dialog.grab_set()
@@ -710,7 +732,7 @@ class CalorieTrackerTab(ttk.Frame):
             textvariable=product_var,
             values=sorted(products.keys()),
             state="readonly",
-            width=35,
+            width=50,
             font=("Arial", 10),
         )
         product_combo.grid(row=1, column=0, pady=5, columnspan=2, sticky=tk.W)
@@ -769,7 +791,7 @@ class CalorieTrackerTab(ttk.Frame):
         quick_frame = ttk.Frame(content_frame)
         quick_frame.grid(row=7, column=0, columnspan=2, sticky=tk.W)
 
-        quick_values_grams = [50, 100, 150, 200, 250, 300, 500]
+        quick_values_grams = [30, 50, 100, 150, 200, 250, 300, 500]
         quick_values_portions = [0.5, 1, 1.5, 2, 2.5, 3]
 
         def set_quick_value(value):
